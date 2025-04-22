@@ -32,7 +32,3 @@ O **Gamify Journal** é uma plataforma que transforma a experiência de escrita 
    npm run dev
    ```
 
-## Conceito
-
-O Gamify Journal transforma a criação de conteúdo escrito em uma aventura gamificada. A cada palavra escrita, você ganha experiência, desenvolve seu personagem e completa missões. É uma maneira criativa de manter o hábito de escrita, seja para diários pessoais, desenvolvimento de histórias ou qualquer outro tipo de conteúdo textual.
-
