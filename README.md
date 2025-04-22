@@ -2,7 +2,7 @@
 
 ## Sobre o Projeto
 
-O **Gamify Journal** é uma plataforma que transforma a experiência de escrita em um jogo de RPG. Com este aplicativo, os usuários podem criar diários pessoais enquanto ganham experiência (XP), sobem de nível e completam missões, tornando o hábito de escrever muito mais divertido.
+O **Gamify Journal** é uma plataforma que transforma a experiência de escrita em um jogo de RPG. Com este aplicativo, os usuários podem criar diários pessoais enquanto ganham experiência (XP), sobem de nível e completam missões, tornando o hábito de escrever mais divertido.
 
 ## Funcionalidades Principais
 
@@ -31,8 +31,4 @@ O **Gamify Journal** é uma plataforma que transforma a experiência de escrita 
    ```bash
    npm run dev
    ```
-
-## Conceito
-
-O Gamify Journal transforma a criação de conteúdo escrito em uma aventura gamificada. A cada palavra escrita, você ganha experiência, desenvolve seu personagem e completa missões. É uma maneira criativa de manter o hábito de escrita, seja para diários pessoais, desenvolvimento de histórias ou qualquer outro tipo de conteúdo textual.
 
