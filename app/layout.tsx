@@ -18,8 +18,3 @@ export default function RootLayout({
   )
 }
 
-import { Inter } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'] })
-
-
