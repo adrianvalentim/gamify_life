@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDocument } from "@/hooks/use-document"
+import { useDocumentStructure } from "@/hooks/use-document-structure"
 import {
   Dialog,
   DialogContent,
@@ -45,14 +46,29 @@ interface SidebarProps {
 
 export function Sidebar({ activeDocumentId }: SidebarProps) {
   const pathname = usePathname()
-  const { createDocument, navigateToDocument, isLoading } = useDocument()
+  const { createDocument, navigateToDocument, isLoading: isCreating } = useDocument()
+  const { structure, isLoading: isLoadingStructure, revalidateStructure } = useDocumentStructure()
   const { toast } = useToast()
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    "folder-1": true,
-  })
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
   const [isNewDocDialogOpen, setIsNewDocDialogOpen] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState("")
   const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
+
+  // Initialize expanded state based on fetched structure
+  useEffect(() => {
+    const initialExpanded: Record<string, boolean> = {};
+    const setExpanded = (folders: any[]) => {
+      folders.forEach(f => {
+        // Optionally expand top-level folders by default
+        if (f.id === 'folder-1') initialExpanded[f.id] = true;
+        if (f.subfolders) setExpanded(f.subfolders);
+      });
+    }
+    if (structure && structure.folders) {
+      setExpanded(structure.folders);
+      setExpandedFolders(initialExpanded);
+    }
+  }, [structure]);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => ({
@@ -61,46 +77,20 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     }))
   }
 
-  // Mock data - in a real app this would come from a database
-  const folders = [
-    {
-      id: "folder-1",
-      name: "Adventures",
-      documents: [
-        { id: "doc-1", name: "World Building" },
-        { id: "doc-2", name: "Character Lore" },
-      ],
-      subfolders: [
-        {
-          id: "folder-1-1",
-          name: "Quests",
-          documents: [
-            { id: "doc-3", name: "Main Quest" },
-            { id: "doc-4", name: "Side Quests" },
-          ],
-        },
-      ],
-    },
-    {
-      id: "folder-2",
-      name: "Journal",
-      documents: [
-        { id: "doc-5", name: "Daily Notes" },
-        { id: "doc-6", name: "Ideas" },
-      ],
-    },
-  ]
-
   const handleCreateDocument = async () => {
     // Convert "root" value to undefined for the API
     const folderIdToUse = selectedFolderId === "root" ? undefined : selectedFolderId;
     
     const document = await createDocument(newDocTitle || "Untitled", folderIdToUse);
-    setIsNewDocDialogOpen(false);
-    setNewDocTitle("");
-    setSelectedFolderId("root");
     
     if (document) {
+      setIsNewDocDialogOpen(false);
+      setNewDocTitle("");
+      setSelectedFolderId("root");
+      
+      // Revalidate the structure from the server
+      revalidateStructure();
+      
       toast({
         title: "Success",
         description: "Document created successfully",
@@ -119,7 +109,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     folder: {
       id: string
       name: string
-      documents?: { id: string; name: string }[]
+      documents: { id: string; name: string }[]
       subfolders?: any[]
     },
     depth = 0,
@@ -186,11 +176,39 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
       folder.subfolders?.forEach((subfolder: any) => addFolder(subfolder, depth + 1))
     }
     
-    folders.forEach(folder => addFolder(folder))
+    structure.folders.forEach(folder => addFolder(folder))
     return result
   }
 
   const allFolders = getAllFolders()
+
+  if (isLoadingStructure) {
+    return (
+      <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
+        {/* Keep header and footer visible during load */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md">
+            <Home className="h-5 w-5" />
+            <span className="font-semibold text-lg">Notes & Dragons</span>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+        <div className="p-4 border-t mt-auto">
+          <div className="flex items-center justify-between">
+            <Button variant="ghost" size="sm" className="w-full justify-start" disabled>
+              <Plus className="mr-2 h-4 w-4" />
+              New Page
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
@@ -213,7 +231,39 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         </div>
       </div>
       <ScrollArea className="flex-1 px-2">
-        <div className="space-y-1 py-2">{folders.map((folder) => renderFolder(folder))}</div>
+        {/* Root documents */}
+        {structure.rootDocuments.length > 0 && (
+          <div className="space-y-1 py-2">
+            {structure.rootDocuments.map((doc) => (
+              <Link key={doc.id} href={`/docs/${doc.id}`}>
+                <div
+                  className={cn(
+                    "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
+                    activeDocumentId === doc.id && "bg-accent",
+                  )}
+                >
+                  <span className="mr-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </span>
+                  <span className="truncate">{doc.name}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+        
+        {/* Folders */}
+        {structure.folders && structure.folders.length > 0 && (
+          <div className="space-y-1 py-2">
+            {structure.folders.map((folder) => renderFolder(folder))}
+          </div>
+        )}
+        {/* Display message if no documents or folders */}
+        {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            No pages yet. Create one!
+          </div>
+        )}
       </ScrollArea>
       <div className="p-4 border-t mt-auto">
         <div className="flex items-center justify-between">
@@ -267,8 +317,8 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
                 <Button variant="outline" onClick={() => setIsNewDocDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateDocument} disabled={isLoading}>
-                  {isLoading ? (
+                <Button onClick={handleCreateDocument} disabled={isCreating}>
+                  {isCreating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Creating...

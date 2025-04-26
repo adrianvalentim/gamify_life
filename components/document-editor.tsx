@@ -1,8 +1,7 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
@@ -14,6 +13,7 @@ import { QuestPanel } from "@/components/quest-panel"
 import { useXpSystem } from "@/hooks/use-xp-system"
 import { QuestInfoPanel } from "@/components/quest-info-panel"
 import { cn } from "@/lib/utils"
+import { useDocumentStructure } from "@/hooks/use-document-structure"
 
 interface DocumentEditorProps {
   documentId?: string
@@ -23,9 +23,12 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [showQuestPanel, setShowQuestPanel] = useState(false)
   const [showQuestInfo, setShowQuestInfo] = useState(false)
   const { addXp, characterLevel, characterXp, nextLevelXp } = useXpSystem()
+  const { structure } = useDocumentStructure()
 
-  // Mock document data - in a real app this would come from a database
-  const [documentTitle, setDocumentTitle] = useState(documentId ? "My Fantasy Document" : "Welcome to Notes & Dragons")
+  // State for title - will be updated by useEffect
+  const [documentTitle, setDocumentTitle] = useState("")
+  // State to track if content has been loaded for the current ID
+  const [contentLoaded, setContentLoaded] = useState(false); 
 
   const editor = useEditor({
     extensions: [
@@ -45,16 +48,14 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
         types: ["heading", "paragraph"],
       }),
     ],
-    content: documentId
-      ? "<h1>My Fantasy Document</h1><p>Once upon a time in a land far away...</p>"
-      : "<h1>Welcome to Notes & Dragons</h1><p>Start writing to earn experience and level up your character!</p><p>Select quests from the quest panel to earn bonus rewards.</p><p>Click anywhere on this page to start writing your own adventure!</p>",
+    // Start with empty content, will be set by useEffect
+    content: '', 
     onUpdate: ({ editor }) => {
       // Count words and add XP
       const text = editor.getText()
       const wordCount = text.split(/\s+/).filter(Boolean).length
 
       // Add XP for new words (this is a simple implementation)
-      // In a real app, you'd track the previous word count and only add XP for new words
       if (wordCount > 0) {
         addXp(1)
       }
@@ -65,6 +66,47 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       },
     },
   })
+
+  // Effect to load document title and content when documentId changes
+  useEffect(() => {
+    if (!editor) {
+      return; // Editor not ready yet
+    }
+
+    let title = "Welcome to Notes & Dragons";
+    let content = "<h1>Welcome to Notes & Dragons</h1><p>Start writing to earn experience and level up your character!</p><p>Select quests from the quest panel to earn bonus rewards.</p><p>Click anywhere on this page to start writing your own adventure!</p>";
+    setContentLoaded(false); // Reset content loaded flag
+
+    if (documentId) {
+      // Find the document in the structure (mock)
+      let foundDoc = structure.rootDocuments.find(d => d.id === documentId);
+      if (!foundDoc) {
+        structure.folders.forEach(folder => {
+          const findInFolder = (f: any): any => {
+            let doc = f.documents?.find((d: any) => d.id === documentId);
+            if (doc) return doc;
+            return f.subfolders?.map(findInFolder).find((d: any) => d);
+          }
+          if (!foundDoc) foundDoc = findInFolder(folder);
+        });
+      }
+
+      // Use the found document name or a default if newly created and not yet in structure
+      title = foundDoc ? foundDoc.name : "Untitled Page";
+      // In a real app, you would fetch content based on documentId here
+      // For mock purposes, we use a placeholder or previously known content
+      content = `<h1>${title}</h1><p>Content for document ${documentId} goes here...</p>`;
+    }
+
+    setDocumentTitle(title);
+    // Check if editor is ready and content needs updating
+    if (editor.isEditable) { 
+      editor.commands.setContent(content, false); // Set content, don't emit update
+      setContentLoaded(true); // Mark content as loaded for this ID
+    }
+
+  // Rerun when documentId, editor instance, or structure changes
+  }, [documentId, editor, structure]);
 
   // Handle click anywhere in the editor area to focus
   const handleEditorAreaClick = useCallback(
@@ -103,7 +145,9 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
         {/* Document content */}
         <div className="editor-container h-full w-full px-8 py-16 cursor-text" onClick={handleEditorAreaClick}>
           <div className="max-w-4xl mx-auto">
+            {/* Use key prop to force re-render of input when title changes, ensuring value updates */}
             <input
+              key={documentId || 'welcome'} // Add key prop
               type="text"
               value={documentTitle}
               onChange={(e) => setDocumentTitle(e.target.value)}
@@ -114,7 +158,8 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
             <EditorToolbar editor={editor} onToggleQuests={() => setShowQuestPanel(!showQuestPanel)} />
 
             <div className="mt-8 relative min-h-[calc(100vh-200px)]">
-              <EditorContent editor={editor} />
+              {/* Only render EditorContent when editor is ready and content is loaded */}
+              {editor && contentLoaded && <EditorContent editor={editor} />} 
             </div>
           </div>
         </div>

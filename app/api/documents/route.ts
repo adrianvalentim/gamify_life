@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
+import { addDocumentToStore } from "@/lib/mock-db";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    // Validate input (add proper validation in real app)
     const { title, folderId } = body;
     
-    // In a real implementation, you would:
-    // 1. Validate the input
-    // 2. Create the document in your database using an ORM like Prisma
-    // 3. Return the created document
-
-    // For now, we'll mock the response
     const newDocumentId = `doc-${Date.now()}`; 
+    const newDocument = { 
+      id: newDocumentId, 
+      name: title || "Untitled" 
+    };
+
+    // Add to our shared in-memory store
+    addDocumentToStore(newDocument, folderId === "root" ? undefined : folderId);
     
     return NextResponse.json(
       { 
         success: true, 
-        document: { 
-          id: newDocumentId, 
-          name: title || "Untitled", 
-          folderId 
-        } 
+        document: { ...newDocument, folderId } // Return folderId for consistency if needed
       },
       { status: 201 }
     );
