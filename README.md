@@ -73,9 +73,3 @@ O **Gamify Journal** é uma plataforma que transforma a experiência de escrita 
   - `/models.py`: Modelos SQLAlchemy para o banco de dados
   - `/schemas.py`: Schemas Pydantic para validação de dados
 
-## Documentação da API
-
-Com o servidor backend em execução, a documentação interativa da API estará disponível em:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
