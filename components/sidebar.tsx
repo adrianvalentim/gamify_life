@@ -16,8 +16,28 @@ import {
   Plus,
   Search,
   Settings,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useDocument } from "@/hooks/use-document"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 interface SidebarProps {
   activeDocumentId?: string
@@ -25,9 +45,14 @@ interface SidebarProps {
 
 export function Sidebar({ activeDocumentId }: SidebarProps) {
   const pathname = usePathname()
+  const { createDocument, navigateToDocument, isLoading } = useDocument()
+  const { toast } = useToast()
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     "folder-1": true,
   })
+  const [isNewDocDialogOpen, setIsNewDocDialogOpen] = useState(false)
+  const [newDocTitle, setNewDocTitle] = useState("")
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders((prev) => ({
@@ -65,6 +90,30 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
       ],
     },
   ]
+
+  const handleCreateDocument = async () => {
+    // Convert "root" value to undefined for the API
+    const folderIdToUse = selectedFolderId === "root" ? undefined : selectedFolderId;
+    
+    const document = await createDocument(newDocTitle || "Untitled", folderIdToUse);
+    setIsNewDocDialogOpen(false);
+    setNewDocTitle("");
+    setSelectedFolderId("root");
+    
+    if (document) {
+      toast({
+        title: "Success",
+        description: "Document created successfully",
+      });
+      navigateToDocument(document.id);
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to create document",
+        variant: "destructive",
+      });
+    }
+  };
 
   const renderFolder = (
     folder: {
@@ -128,6 +177,21 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     )
   }
 
+  // Flatten folders for the dropdown
+  const getAllFolders = () => {
+    const result: { id: string; name: string; depth: number }[] = []
+    
+    const addFolder = (folder: any, depth = 0) => {
+      result.push({ id: folder.id, name: folder.name, depth })
+      folder.subfolders?.forEach((subfolder: any) => addFolder(subfolder, depth + 1))
+    }
+    
+    folders.forEach(folder => addFolder(folder))
+    return result
+  }
+
+  const allFolders = getAllFolders()
+
   return (
     <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
       <div className="p-4 border-b">
@@ -153,10 +217,69 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
       </ScrollArea>
       <div className="p-4 border-t mt-auto">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" className="w-full justify-start">
-            <Plus className="mr-2 h-4 w-4" />
-            New Page
-          </Button>
+          <Dialog open={isNewDocDialogOpen} onOpenChange={setIsNewDocDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="w-full justify-start">
+                <Plus className="mr-2 h-4 w-4" />
+                New Page
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create new page</DialogTitle>
+                <DialogDescription>
+                  Create a new journal page to continue your adventure.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="title" className="text-right">
+                    Title
+                  </Label>
+                  <Input
+                    id="title"
+                    placeholder="Untitled"
+                    className="col-span-3"
+                    value={newDocTitle}
+                    onChange={(e) => setNewDocTitle(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="folder" className="text-right">
+                    Folder
+                  </Label>
+                  <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Select a folder" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="root">Root</SelectItem>
+                      {allFolders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          {folder.depth > 0 ? "┗ ".repeat(folder.depth) : ""}{folder.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsNewDocDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateDocument} disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <Settings className="h-4 w-4" />
           </Button>

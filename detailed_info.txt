@@ -1,0 +1,135 @@
+# Gamify Journal Project - Detailed Information
+
+This document provides comprehensive information about the Gamify Journal project. Its purpose is to guide developers (both human and AI) working on this codebase, ensuring consistency, clarity, and efficient development. Please keep this document updated as the project evolves.
+
+## 1. Project Overview
+
+*   **Purpose**: To make journaling more engaging and consistent by incorporating RPG-like game mechanics.
+*   **Goals**:
+    *   Encourage daily or regular journaling habits.
+    *   Provide users with a sense of progress, achievement, and character development through journaling.
+    *   Create a simple, intuitive, and visually appealing user interface.
+*   **Target Audience**: Individuals looking to build/maintain a journaling habit, users interested in self-improvement, people who enjoy gamified experiences or RPG elements.
+
+## 2. Technology Stack
+
+*   **Backend Language**: Python 3.x (compatible with dependencies)
+*   **Backend Framework**: FastAPI 0.109.1
+*   **Frontend Language**: TypeScript 5.x
+*   **Frontend Framework/Library**: Next.js 15.2.4 (React 19.x)
+*   **Database**: SQLAlchemy 2.0.25 (Assumed PostgreSQL/SQLite, needs confirmation via `DATABASE_URL`)
+*   **ORM/Database Client**: SQLAlchemy 2.0.25 (Core/ORM), Alembic 1.12.1 (Migrations)
+*   **Styling**: Tailwind CSS 3.4.17 (using shadcn/ui components)
+*   **State Management (Frontend)**: React Context API / Local State (Default Next.js/React, check for dedicated library usage if needed)
+*   **External APIs/Services**:
+    *   [List any external services, e.g., OpenAI API for potential AI features, Stripe for payments (if planned)]
+*   **Development Tools**:
+    *   Package Managers: pip (backend), pnpm (frontend)
+    *   Linters: Flake8 (Backend - assumed, add if used), ESLint (Frontend - via `next lint`)
+    *   Formatters: Black (Backend - assumed, add if used), Prettier (Frontend - assumed, check config)
+    *   Build Tools: Next.js build process
+    *   Testing Frameworks: [e.g., Pytest (Backend - add if used), Jest/React Testing Library (Frontend - add if used)]
+    *   Version Control: Git
+
+## 3. Architecture Overview
+
+*   **High-Level Design**: Monolithic application with distinct frontend (Next.js) and backend (FastAPI) components. API-driven communication.
+*   **Key Components**:
+    *   `backend/`: Handles API requests, business logic, database interactions (SQLAlchemy models, Pydantic schemas, FastAPI routers). Includes user auth, journal entries, quests, characters modules.
+        *   `models.py`: Database schema definitions (SQLAlchemy).
+        *   `routers/`: API endpoint definitions (FastAPI).
+        *   `schemas.py`: Data validation/serialization (Pydantic).
+        *   `database.py`: Database connection and session management.
+        *   `security.py`: Authentication and password handling logic.
+        *   `main.py`: FastAPI application entry point and middleware configuration.
+    *   (Root directory acts as frontend): Next.js application structure.
+        *   `app/`: Next.js App Router structure (pages, layouts).
+        *   `components/`: Reusable UI elements (likely shadcn/ui based).
+        *   `lib/`: Utility functions (e.g., `cn` for classnames).
+        *   `hooks/`: Custom React hooks.
+        *   `styles/`: Global CSS (`globals.css`).
+*   **Data Flow**: User interacts with Next.js Frontend -> Frontend sends API request to FastAPI Backend -> Backend processes request (validates with Pydantic, interacts with DB via SQLAlchemy, applies gamification logic) -> Backend sends JSON response to Frontend -> Frontend updates UI (React state).
+*   **Design Patterns**: [List key patterns, e.g., Repository pattern (potentially in DB interactions), Service layer (implied by router separation), Dependency Injection (FastAPI's Depends)]
+
+## 4. Setup and Installation
+
+*   **Prerequisites**:
+    *   Python 3.x (check specific version if needed)
+    *   Node.js v18+ (Recommended for Next.js/pnpm)
+    *   pnpm (`npm install -g pnpm`)
+    *   [Database Server if not using SQLite, e.g., PostgreSQL]
+*   **Cloning**:
+    *   Repository: `[Link to your Git repository]`
+    *   Command: `git clone [Repository URL]`
+    *   Main Branch: `main` (or `master`)
+    *   Development Branches: Feature branches named like `feature/add-streak-counter`, bugfixes `fix/login-error`.
+*   **Dependency Installation**:
+    *   Backend: `cd backend && python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt`
+    *   Frontend: `pnpm install` (run in root directory)
+*   **Configuration**:
+    *   Backend: Copy `backend/.env.example` to `backend/.env` (if exists) and fill variables like `DATABASE_URL`, `SECRET_KEY`.
+    *   Frontend: Copy `.env.local.example` to `.env.local` (if exists) and fill variables (e.g., `NEXT_PUBLIC_API_URL=http://localhost:8000`).
+    *   Ensure backend `SECRET_KEY` is generated securely.
+*   **Database Setup**:
+    *   Ensure Database server (e.g., PostgreSQL) is running OR confirm SQLite usage.
+    *   Configure `DATABASE_URL` in `backend/.env`.
+    *   Create the database if necessary (e.g., `CREATE DATABASE gamify_journal;`).
+    *   Run migrations: `cd backend && alembic upgrade head`
+    *   (Optional) Seed database: [Add command if seeding scripts exist]
+*   **Secrets Management**:
+    *   Sensitive keys (API keys, production database credentials, `SECRET_KEY`) should NEVER be committed to Git.
+    *   Use `.env` / `.env.local` files for local development.
+    *   For production/staging, use environment variables provided by the hosting platform or a dedicated secrets manager.
+
+## 5. Running the Project
+
+*   **Development Servers**:
+    *   Backend: `cd backend && uvicorn main:app --reload --port 8000` (Ensure `venv` is active or use `venv/bin/uvicorn`)
+    *   Frontend: `pnpm dev` (run in root directory)
+*   **Running Tests**:
+    *   Backend: `cd backend && [pytest]` (Add `pytest` to `requirements.txt` if used)
+    *   Frontend: `pnpm test` (Configure test runner like Jest if needed)
+*   **Linting/Formatting**:
+    *   Backend: `cd backend && [flake8 . && black .]` (Add linters/formatters to dev requirements if used)
+    *   Frontend: `pnpm lint` (Uses Next.js built-in ESLint) / `pnpm format` (Add Prettier script if needed)
+
+## 6. Codebase Structure
+
+*   `backend/`: Contains all backend-related code (Python/FastAPI).
+    *   `__init__.py`: Marks directory as Python package.
+    *   `main.py`: FastAPI application setup, middleware, main entry point.
+    *   `models.py`: SQLAlchemy database models.
+    *   `schemas.py`: Pydantic data validation schemas.
+    *   `routers/`: Directory containing API route modules (e.g., `users.py`, `entries.py`).
+    *   `database.py`: SQLAlchemy setup, database session management.
+    *   `security.py`: Authentication helpers (password hashing, JWT).
+    *   `requirements.txt`: Backend Python dependencies.
+    *   `.env.example`: Example environment variables for the backend.
+    *   `alembic/`: (Assumed, generated by `alembic init`) Alembic migration scripts directory.
+    *   `tests/`: (Recommended) Backend unit and integration tests.
+*   (Root Directory): Contains Frontend code (Next.js/React) and project config.
+    *   `app/`: Next.js App Router directory (layouts, pages, components).
+    *   `components/`: Shared UI components (likely includes shadcn/ui components).
+    *   `hooks/`: Custom React hooks.
+    *   `lib/`: Utility functions, potentially API client setup.
+    *   `public/`: Static assets served directly.
+    *   `styles/`: Global stylesheets (`globals.css`).
+    *   `package.json`: Frontend dependencies and scripts (uses pnpm).
+    *   `pnpm-lock.yaml`: Frontend lock file.
+    *   `tailwind.config.ts`: Tailwind CSS configuration.
+    *   `postcss.config.mjs`: PostCSS configuration.
+    *   `tsconfig.json`: TypeScript configuration.
+    *   `next.config.mjs`: Next.js configuration.
+    *   `.env.local.example`: Example environment variables for the frontend.
+    *   `tests/`: (Recommended) Frontend tests.
+*   `detailed_info.txt`: This file.
+*   `README.md`: High-level project overview and basic setup instructions.
+*   `.gitignore`: Specifies files/directories ignored by Git.
+
+## 7. Coding Standards and Conventions
+
+*   **Style Guides**:
+    *   Backend: PEP 8 (enforced by Black - Recommended). Use Flake8 for linting (Recommended).
+    *   Frontend: ESLint (via `next lint`). Prettier for formatting (Recommended - configure `package.json` script).
+*   **Naming Conventions**:
+    *   Python: `
