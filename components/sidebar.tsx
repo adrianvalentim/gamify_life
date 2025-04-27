@@ -269,10 +269,10 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         <div className="flex items-center justify-between">
           <Dialog open={isNewDocDialogOpen} onOpenChange={setIsNewDocDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-start">
-                <Plus className="mr-2 h-4 w-4" />
-                New Page
-              </Button>
+          <Button variant="ghost" size="sm" className="w-full justify-start">
+            <Plus className="mr-2 h-4 w-4" />
+            New Page
+          </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

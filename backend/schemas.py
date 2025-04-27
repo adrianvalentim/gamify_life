@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Dict, List, Any, Union
 from datetime import datetime
-from models import CharacterClass, QuestStatus
+from models import CharacterClass, QuestStatus, User, Folder, Document
 
 # User schemas
 class UserBase(BaseModel):
@@ -111,4 +111,59 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    username: Optional[str] = None 
+    username: Optional[str] = None
+
+# --- Document Schemas ---
+
+class DocumentBase(BaseModel):
+    name: str
+    content: Optional[str] = None
+    folder_id: Optional[int] = None
+
+class DocumentCreate(DocumentBase):
+    pass
+
+class DocumentUpdate(BaseModel):
+    name: Optional[str] = None
+    content: Optional[str] = None
+    folder_id: Optional[int] = None
+
+# Forward declaration needed for recursive FolderRead
+class FolderRead(BaseModel):
+    pass
+
+class DocumentRead(DocumentBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+# --- Folder Schemas ---
+
+class FolderBase(BaseModel):
+    name: str
+    parent_folder_id: Optional[int] = None
+
+class FolderCreate(FolderBase):
+    pass
+
+class FolderUpdate(BaseModel):
+    name: Optional[str] = None
+    parent_folder_id: Optional[int] = None
+
+class FolderRead(FolderBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    documents: List[DocumentRead] = []
+    subfolders: List['FolderRead'] = []
+
+    model_config = {"from_attributes": True}
+
+# Schema for the nested structure response
+class DocumentStructureResponse(BaseModel):
+    root_documents: List[DocumentRead] = []
+    folders: List[FolderRead] = [] 
