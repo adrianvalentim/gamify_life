@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
+import datetime
 
 from database import Base
 
@@ -30,6 +31,8 @@ class User(Base):
     character = relationship("Character", back_populates="user", uselist=False)
     entries = relationship("JournalEntry", back_populates="user")
     quests = relationship("UserQuest", back_populates="user")
+    folders = relationship("Folder", back_populates="owner")
+    documents = relationship("Document", back_populates="owner", foreign_keys="Document.owner_id")
 
 class Character(Base):
     __tablename__ = "characters"
@@ -83,4 +86,33 @@ class UserQuest(Base):
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="quests")
-    quest = relationship("Quest", back_populates="user_quests") 
+    quest = relationship("Quest", back_populates="user_quests")
+
+class Folder(Base):
+    __tablename__ = "folders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    parent_folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    owner = relationship("User", back_populates="folders")
+    subfolders = relationship("Folder", back_populates="parent_folder", remote_side=[id])
+    parent_folder = relationship("Folder", back_populates="subfolders", remote_side=[parent_folder_id])
+    documents = relationship("Document", back_populates="folder", foreign_keys="Document.folder_id")
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    content = Column(Text, nullable=True)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    owner = relationship("User", back_populates="documents", foreign_keys=[owner_id])
+    folder = relationship("Folder", back_populates="documents", foreign_keys=[folder_id]) 

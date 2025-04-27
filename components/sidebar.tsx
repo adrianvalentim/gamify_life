@@ -189,7 +189,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-md">
             <Home className="h-5 w-5" />
-            <span className="font-semibold text-lg">Notes & Dragons</span>
+            <span className="font-semibold text-lg">Gamify Journal</span>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center">
@@ -216,7 +216,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         <Link href="/docs">
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/50 transition-colors">
             <Home className="h-5 w-5" />
-            <span className="font-semibold text-lg">Notes & Dragons</span>
+            <span className="font-semibold text-lg">Gamify Journal</span>
           </div>
         </Link>
       </div>
@@ -269,10 +269,10 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         <div className="flex items-center justify-between">
           <Dialog open={isNewDocDialogOpen} onOpenChange={setIsNewDocDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full justify-start">
-                <Plus className="mr-2 h-4 w-4" />
-                New Page
-              </Button>
+          <Button variant="ghost" size="sm" className="w-full justify-start">
+            <Plus className="mr-2 h-4 w-4" />
+            New Page
+          </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
