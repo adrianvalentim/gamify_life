@@ -39,6 +39,8 @@ import {
   SelectValue 
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
+import { useLanguage } from "@/hooks/use-language"
+import { SettingsPanel } from "@/components/settings-panel"
 
 interface SidebarProps {
   activeDocumentId?: string
@@ -53,6 +55,8 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   const [isNewDocDialogOpen, setIsNewDocDialogOpen] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState("")
   const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
+  const { translations } = useLanguage()
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
   // Initialize expanded state based on fetched structure
   useEffect(() => {
@@ -199,7 +203,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
           <div className="flex items-center justify-between">
             <Button variant="ghost" size="sm" className="w-full justify-start" disabled>
               <Plus className="mr-2 h-4 w-4" />
-              New Page
+              {translations.newPage}
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
               <Settings className="h-4 w-4" />
@@ -225,7 +229,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search..."
+            placeholder={translations.search}
             className="pl-8 bg-background h-9 focus-visible:ring-amber-500"
           />
         </div>
@@ -261,7 +265,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         {/* Display message if no documents or folders */}
         {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
           <div className="p-4 text-center text-sm text-muted-foreground">
-            No pages yet. Create one!
+            {translations.noPages}
           </div>
         )}
       </ScrollArea>
@@ -271,20 +275,20 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
             <DialogTrigger asChild>
           <Button variant="ghost" size="sm" className="w-full justify-start">
             <Plus className="mr-2 h-4 w-4" />
-            New Page
+            {translations.newPage}
           </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create new page</DialogTitle>
+                <DialogTitle>{translations.createNewPage}</DialogTitle>
                 <DialogDescription>
-                  Create a new journal page to continue your adventure.
+                  {translations.createDescription}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="title" className="text-right">
-                    Title
+                    {translations.title}
                   </Label>
                   <Input
                     id="title"
@@ -296,11 +300,11 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="folder" className="text-right">
-                    Folder
+                    {translations.folder}
                   </Label>
                   <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
                     <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select a folder" />
+                      <SelectValue placeholder={translations.selectFolder} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="root">Root</SelectItem>
@@ -315,24 +319,30 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsNewDocDialogOpen(false)}>
-                  Cancel
+                  {translations.cancel}
                 </Button>
                 <Button onClick={handleCreateDocument} disabled={isCreating}>
                   {isCreating ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      {translations.creating}
                     </>
                   ) : (
-                    "Create"
+                    translations.create
                   )}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => setIsSettingsOpen(true)}
+          >
             <Settings className="h-4 w-4" />
           </Button>
+          <SettingsPanel open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
         </div>
       </div>
     </div>
