@@ -67,7 +67,7 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
         class: "outline-none prose prose-lg max-w-none",
       },
     },
-  })
+  }, [translations])
 
   // Effect to load document title and content when documentId changes
   useEffect(() => {
@@ -75,8 +75,8 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       return; // Editor not ready yet
     }
 
-    let title = "Welcome to Gamify Journal";
-    let content = "<h1>Welcome to Gamify Journal</h1><p>Start writing to earn experience and level up your character!</p><p>Select quests from the quest panel to earn bonus rewards.</p><p>Click anywhere on this page to start writing your own adventure!</p>";
+    let title = `${translations.welcomeTo} Gamify Journal`;
+    let content = `<h1>${translations.welcomeTo} Gamify Journal</h1><p>${translations.startWriting}</p><p>${translations.selectQuests}</p><p>${translations.clickAnywhere}</p>`;
     setContentLoaded(false); // Reset content loaded flag
 
     if (documentId) {
@@ -94,7 +94,7 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       }
 
       // Use the found document name or a default if newly created and not yet in structure
-      title = foundDoc ? foundDoc.name : "Untitled Page";
+      title = foundDoc ? foundDoc.name : translations.untitledPage;
       // In a real app, you would fetch content based on documentId here
       // For mock purposes, we use a placeholder or previously known content
       content = `<h1>${title}</h1><p>Content for document ${documentId} goes here...</p>`;
@@ -108,7 +108,7 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
     }
 
   // Rerun when documentId, editor instance, or structure changes
-  }, [documentId, editor, structure]);
+  }, [documentId, editor, structure, translations]);
 
   // Handle click anywhere in the editor area to focus
   const handleEditorAreaClick = useCallback(
@@ -149,19 +149,24 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
           <div className="max-w-4xl mx-auto">
             {/* Use key prop to force re-render of input when title changes, ensuring value updates */}
             <input
-              key={documentId || 'welcome'} // Add key prop
+              key={`${documentId || 'welcome'}-${translations.language}`} // Add language to key to force re-render
               type="text"
               value={documentTitle}
               onChange={(e) => setDocumentTitle(e.target.value)}
               className="w-full text-3xl font-bold mb-4 bg-transparent border-none outline-none focus:ring-0"
-              placeholder="Document Title"
+              placeholder={translations.title}
             />
 
             <EditorToolbar editor={editor} onToggleQuests={() => setShowQuestPanel(!showQuestPanel)} />
 
             <div className="mt-8 relative min-h-[calc(100vh-200px)]">
               {/* Only render EditorContent when editor is ready and content is loaded */}
-              {editor && contentLoaded && <EditorContent editor={editor} />} 
+              {editor && contentLoaded && (
+                <EditorContent 
+                  editor={editor} 
+                  key={`editor-${translations.language}`} // Add key to force re-render when language changes
+                />
+              )} 
             </div>
           </div>
         </div>

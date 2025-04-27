@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { X, CheckCircle2, Clock, Star } from "lucide-react"
+import { useLanguage } from "@/hooks/use-language"
 
 interface QuestPanelProps {
   onClose: () => void
 }
 
 export function QuestPanel({ onClose }: QuestPanelProps) {
+  const { translations } = useLanguage()
+  
   // Mock quests data - in a real app this would come from a database
   const [quests, setQuests] = useState([
     {
@@ -58,7 +61,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
   return (
     <div className="absolute top-0 right-0 h-full w-80 bg-background border-l shadow-lg z-20">
       <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="font-bold text-lg">Quests</h2>
+        <h2 className="font-bold text-lg">{translations.quests}</h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -69,7 +72,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
           <div className="space-y-2">
             <h3 className="font-medium text-sm flex items-center gap-1">
               <Star className="h-4 w-4 text-amber-500" />
-              Active Quests
+              {translations.activeQuests}
             </h3>
 
             {quests
@@ -84,15 +87,15 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
                       className="h-6 px-2 text-xs"
                       onClick={() => toggleQuestActive(quest.id)}
                     >
-                      Abandon
+                      {translations.abandon}
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">{quest.description}</p>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-amber-500 font-medium">Reward: {quest.reward}</span>
+                    <span className="text-amber-500 font-medium">{translations.reward}: {quest.reward}</span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      Progress: {quest.progress}%
+                      {translations.progress}: {quest.progress}%
                     </span>
                   </div>
                   <Progress value={quest.progress} className="h-1.5" />
@@ -101,7 +104,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-medium text-sm">Available Quests</h3>
+            <h3 className="font-medium text-sm">{translations.availableQuests}</h3>
 
             {quests
               .filter((q) => !q.active)
@@ -115,12 +118,12 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
                       className="h-6 px-2 text-xs bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700"
                       onClick={() => toggleQuestActive(quest.id)}
                     >
-                      Accept
+                      {translations.accept}
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">{quest.description}</p>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-amber-500 font-medium">Reward: {quest.reward}</span>
+                    <span className="text-amber-500 font-medium">{translations.reward}: {quest.reward}</span>
                     <span
                       className={`px-1.5 py-0.5 rounded-full ${
                         quest.difficulty === "easy"
@@ -130,7 +133,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
                             : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {quest.difficulty.charAt(0).toUpperCase() + quest.difficulty.slice(1)}
+                      {translations[quest.difficulty as keyof typeof translations]}
                     </span>
                   </div>
                 </div>
@@ -140,7 +143,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
           <div className="pt-4 border-t">
             <Button className="w-full bg-amber-500 hover:bg-amber-600">
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Complete Daily Quest
+              {translations.completeDailyQuest}
             </Button>
           </div>
         </div>

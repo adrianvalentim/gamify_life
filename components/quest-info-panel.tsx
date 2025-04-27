@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { X, Sparkles, Scroll, BookOpen, MapPin, Swords, MessageSquare, Compass, Award } from "lucide-react"
+import { useLanguage } from "@/hooks/use-language"
 
 interface QuestInfoPanelProps {
   onClose: () => void
@@ -14,6 +15,7 @@ interface QuestInfoPanelProps {
 }
 
 export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPanelProps) {
+  const { translations } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<"quest" | "lore" | "rewards">("quest")
   const [questData, setQuestData] = useState<{
@@ -127,7 +129,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
       <div className="flex items-center justify-between p-4 border-b">
         <h2 className="font-bold text-lg flex items-center gap-2">
           <Scroll className="h-5 w-5 text-amber-500" />
-          Adventure Journal
+          {translations.adventureJournal}
         </h2>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
@@ -141,7 +143,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
           onClick={() => setActiveTab("quest")}
         >
           <Compass className="h-4 w-4 mr-2" />
-          Quest
+          {translations.quest}
         </Button>
         <Button
           variant="ghost"
@@ -149,7 +151,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
           onClick={() => setActiveTab("lore")}
         >
           <BookOpen className="h-4 w-4 mr-2" />
-          Lore
+          {translations.lore}
         </Button>
         <Button
           variant="ghost"
@@ -157,7 +159,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
           onClick={() => setActiveTab("rewards")}
         >
           <Award className="h-4 w-4 mr-2" />
-          Rewards
+          {translations.rewards}
         </Button>
       </div>
 
@@ -194,12 +196,12 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
                     <div className="bg-muted/50 rounded-md p-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <Swords className="h-4 w-4 text-amber-500" />
-                        <h4 className="font-medium text-sm">Objective</h4>
+                        <h4 className="font-medium text-sm">{translations.objective}</h4>
                       </div>
                       <p className="text-sm">{questData.objective}</p>
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
-                          <span>Progress</span>
+                          <span>{translations.progress}</span>
                           <span>{questData.progress}%</span>
                         </div>
                         <Progress value={questData.progress} className="h-1.5" />
@@ -210,7 +212,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-amber-500" />
-                      <h4 className="font-medium">Next Steps</h4>
+                      <h4 className="font-medium">{translations.nextSteps}</h4>
                     </div>
                     <ul className="space-y-2">
                       {questData.nextSteps.map((step, index) => (
@@ -227,7 +229,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
                   <div className="pt-4 border-t mt-4">
                     <Button className="w-full bg-amber-500 hover:bg-amber-600">
                       <MessageSquare className="mr-2 h-4 w-4" />
-                      Ask for Guidance
+                      {translations.askForGuidance}
                     </Button>
                   </div>
                 </div>
@@ -235,7 +237,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
 
               {activeTab === "lore" && (
                 <div className="space-y-4">
-                  <h3 className="font-bold text-xl text-amber-600">{questData.title} - Lore</h3>
+                  <h3 className="font-bold text-xl text-amber-600">{questData.title} - {translations.lore}</h3>
                   <div className="bg-muted/30 rounded-md p-4 border border-amber-200/20">
                     <p className="text-sm leading-relaxed">{questData.lore}</p>
                   </div>
@@ -243,11 +245,10 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
                   <div className="bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 p-4 rounded-md border border-amber-200 mt-6">
                     <h4 className="font-medium mb-2 flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
-                      Scribe's Note
+                      {translations.scribesNote}
                     </h4>
                     <p className="text-sm italic">
-                      Continue writing in your journal to uncover more of this story. The more you write, the more lore
-                      will be revealed.
+                      {translations.continueWriting}
                     </p>
                   </div>
                 </div>
