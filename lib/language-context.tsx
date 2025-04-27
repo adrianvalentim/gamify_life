@@ -21,6 +21,11 @@ const translationMap: Record<Language, Record<string, string>> = {
     // Document editor
     "whatIsTitle": "What is the title?",
     "beginAdventure": "Begin your adventure...",
+    "untitledPage": "Untitled Page",
+    "welcomeTo": "Welcome to",
+    "startWriting": "Start writing to earn experience and level up your character!",
+    "selectQuests": "Select quests from the quest panel to earn bonus rewards.",
+    "clickAnywhere": "Click anywhere on this page to start writing your own adventure!",
     
     // Create document dialog
     "createNewPage": "Create new page",
@@ -35,6 +40,30 @@ const translationMap: Record<Language, Record<string, string>> = {
     "documentCreated": "Document created successfully",
     "error": "Error",
     "documentCreateFailed": "Failed to create document",
+    
+    // Quest Panel
+    "quests": "Quests",
+    "activeQuests": "Active Quests",
+    "availableQuests": "Available Quests",
+    "abandon": "Abandon",
+    "accept": "Accept",
+    "reward": "Reward",
+    "progress": "Progress",
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "completeDailyQuest": "Complete Daily Quest",
+
+    // Adventure Journal
+    "adventureJournal": "Adventure Journal",
+    "quest": "Quest",
+    "lore": "Lore",
+    "rewards": "Rewards",
+    "objective": "Objective",
+    "nextSteps": "Next Steps",
+    "askForGuidance": "Ask for Guidance",
+    "scribesNote": "Scribe's Note",
+    "continueWriting": "Continue writing in your journal to uncover more of this story. The more you write, the more lore will be revealed.",
     
     // Settings
     "settings": "Settings",
@@ -51,6 +80,11 @@ const translationMap: Record<Language, Record<string, string>> = {
     // Document editor
     "whatIsTitle": "Qual é o título?",
     "beginAdventure": "Comece sua aventura...",
+    "untitledPage": "Página sem Título",
+    "welcomeTo": "Bem-vindo ao",
+    "startWriting": "Comece a escrever para ganhar experiência e subir de nível!",
+    "selectQuests": "Selecione missões no painel de missões para ganhar recompensas extras.",
+    "clickAnywhere": "Clique em qualquer lugar nesta página para começar a escrever sua própria aventura!",
     
     // Create document dialog
     "createNewPage": "Criar nova página",
@@ -65,6 +99,30 @@ const translationMap: Record<Language, Record<string, string>> = {
     "documentCreated": "Documento criado com sucesso",
     "error": "Erro",
     "documentCreateFailed": "Falha ao criar documento",
+    
+    // Quest Panel
+    "quests": "Missões",
+    "activeQuests": "Missões Ativas",
+    "availableQuests": "Missões Disponíveis",
+    "abandon": "Abandonar",
+    "accept": "Aceitar",
+    "reward": "Recompensa",
+    "progress": "Progresso",
+    "easy": "Fácil",
+    "medium": "Média",
+    "hard": "Difícil",
+    "completeDailyQuest": "Completar Missão Diária",
+
+    // Adventure Journal
+    "adventureJournal": "Diário de Aventura",
+    "quest": "Missão",
+    "lore": "História",
+    "rewards": "Recompensas",
+    "objective": "Objetivo",
+    "nextSteps": "Próximos Passos",
+    "askForGuidance": "Pedir Orientação",
+    "scribesNote": "Nota do Escriba",
+    "continueWriting": "Continue escrevendo em seu diário para descobrir mais desta história. Quanto mais você escrever, mais história será revelada.",
     
     // Settings
     "settings": "Configurações",
