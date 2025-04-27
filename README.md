@@ -51,18 +51,7 @@ O **Gamify Journal** é uma plataforma que transforma a experiência de escrita 
    python3 -m uvicorn main:app --reload
    ```
 
-### Acesso à API
-- A API estará disponível em `http://localhost:8000`
-- Documentação interativa (Swagger UI): `http://localhost:8000/docs`
-- Documentação alternativa (ReDoc): `http://localhost:8000/redoc`
 
-### Fluxo de Uso Básico
-1. Registre-se usando o endpoint `/api/users/register`
-2. Faça login para obter um token JWT em `/api/users/token`
-3. Crie um personagem em `/api/characters/`
-4. Escreva entradas de diário em `/api/entries/`
-5. Aceite missões em `/api/quests/accept/{quest_id}`
-6. Acompanhe o progresso do seu personagem em `/api/characters/me`
 
 ## Estrutura do Projeto
 

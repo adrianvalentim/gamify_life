@@ -14,6 +14,7 @@ import { useXpSystem } from "@/hooks/use-xp-system"
 import { QuestInfoPanel } from "@/components/quest-info-panel"
 import { cn } from "@/lib/utils"
 import { useDocumentStructure } from "@/hooks/use-document-structure"
+import { useLanguage } from "@/hooks/use-language"
 
 interface DocumentEditorProps {
   documentId?: string
@@ -24,6 +25,7 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [showQuestInfo, setShowQuestInfo] = useState(false)
   const { addXp, characterLevel, characterXp, nextLevelXp } = useXpSystem()
   const { structure } = useDocumentStructure()
+  const { translations } = useLanguage()
 
   // State for title - will be updated by useEffect
   const [documentTitle, setDocumentTitle] = useState("")
@@ -36,9 +38,9 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       Placeholder.configure({
         placeholder: ({ node }) => {
           if (node.type.name === "heading") {
-            return "What is the title?"
+            return translations.whatIsTitle
           }
-          return "Begin your adventure..."
+          return translations.beginAdventure
         },
       }),
       Heading.configure({
@@ -73,8 +75,8 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       return; // Editor not ready yet
     }
 
-    let title = "Welcome to Notes & Dragons";
-    let content = "<h1>Welcome to Notes & Dragons</h1><p>Start writing to earn experience and level up your character!</p><p>Select quests from the quest panel to earn bonus rewards.</p><p>Click anywhere on this page to start writing your own adventure!</p>";
+    let title = "Welcome to Gamify Journal";
+    let content = "<h1>Welcome to Gamify Journal</h1><p>Start writing to earn experience and level up your character!</p><p>Select quests from the quest panel to earn bonus rewards.</p><p>Click anywhere on this page to start writing your own adventure!</p>";
     setContentLoaded(false); // Reset content loaded flag
 
     if (documentId) {
