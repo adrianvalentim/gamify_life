@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Gamify Journal',
-  description: 'Gamefy your life story.',
+  description: 'Gamify your life story.',
 }
 
 export default function RootLayout({
