@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"gamify_journal/internal/platform/database" // Adjust if your module name is different
+	"gamify_journal/internal/user"                // Import the user package
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -42,10 +43,20 @@ func main() {
 		_, _ = w.Write([]byte(`{"status": "healthy", "service": "gamify_journal_api"}`))
 	})
 
-	// API v1 Routes (example placeholder - we will build these out)
+	// --- User Routes --- //
+	// Initialize user store, service, and handler
+	userStore := user.NewGormStore()     // GORM store implementation
+	userService := user.NewService(userStore) // User service with store dependency
+	userHandler := user.NewHandler(userService) // User HTTP handler with service dependency
+
+	// API v1 Routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// r.Mount("/users", userRoutes()) // Example: how user routes would be mounted
-		// r.Mount("/entries", entryRoutes()) // Example: how entry routes would be mounted
+		// Mount user-specific routes (registration, get by ID)
+		r.Mount("/users", userRouter(userHandler)) // Will define userRouter shortly
+
+		// Mount authentication routes (login)
+		r.Mount("/auth", authRouter(userHandler)) // Will define authRouter shortly
+
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) { // Basic v1 welcome
 			_, _ = w.Write([]byte("Welcome to Gamify Journal API v1"))
 		})
@@ -64,4 +75,27 @@ func main() {
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("Fatal Error: Could not start server: %v", err)
 	}
+}
+
+// userRouter defines routes related to user management (e.g., register, get user details)
+func userRouter(h *user.Handler) http.Handler {
+	r := chi.NewRouter()
+	r.Post("/register", h.handleRegisterUser) // POST /api/v1/users/register
+	// GET /api/v1/users/{userID}
+	// Note: handleGetUserByID is already part of the handler passed to MountRoutes in user_handler.go
+	// So, if MountRoutes in user_handler.go handles "/{userID}", we might not need it here explicitly
+	// Let's adjust user_handler.go's MountRoutes to be more flexible or define specific routes here.
+	// For now, assuming user_handler.MountRoutes sets up /{userID}
+	// We can make it more explicit by calling specific handler methods for specific sub-routes.
+	r.Get("/{userID}", h.handleGetUserByID)
+	return r
+}
+
+// authRouter defines routes related to authentication (e.g., login, logout, refresh token)
+func authRouter(h *user.Handler) http.Handler {
+	r := chi.NewRouter()
+	r.Post("/login", h.handleLoginUser) // POST /api/v1/auth/login
+	// r.Post("/logout", h.handleLogoutUser) // TODO: Implement logout
+	// r.Post("/refresh", h.handleRefreshToken) // TODO: Implement token refresh
+	return r
 } 
