@@ -7,7 +7,7 @@ import (
 	"testing"
 	// "time" // Not directly used in this initial set of tests, but might be for CreatedAt/UpdatedAt checks
 
-	"gamify_journal/internal/models"
+	"github.com/adrianvalentim/gamify_journal/internal/models"
 	// We don't import bcrypt here directly for tests if we trust our hashPassword,
 	// but for mockStore, we might need to simulate password checking if we were testing AuthenticateUser more deeply.
 )
@@ -83,11 +83,11 @@ func TestUserService_RegisterUser_Success(t *testing.T) {
 		return nil, fmt.Errorf("mock GetByUsername called with unexpected username: %s", u)
 	}
 
-	var capturedUserForCreate *models.User
+	var capturedUserForCreate models.User // Store a copy of the user
+	var wasCreateCalled bool
 	mockStore.CreateFunc = func(u *models.User) error {
-		capturedUserForCreate = u // Capture the user passed to the mock store's Create method
-		// Simulate successful creation by GORM (GORM would set CreatedAt, UpdatedAt)
-		// For the purpose of what the service returns, these are not set by the service itself anymore.
+		wasCreateCalled = true
+		capturedUserForCreate = *u // Make a copy of the user struct at the moment of creation
 		return nil
 	}
 
@@ -115,8 +115,8 @@ func TestUserService_RegisterUser_Success(t *testing.T) {
 	}
 
 	// Validate the user object that was passed to the store's Create method
-	if capturedUserForCreate == nil {
-		t.Fatal("mockStore.CreateFunc was not called or did not capture the user")
+	if !wasCreateCalled {
+		t.Fatal("mockStore.CreateFunc was not called")
 	}
 	if capturedUserForCreate.Username != username {
 		t.Errorf("Username passed to store.Create was '%s', expected '%s'", capturedUserForCreate.Username, username)
@@ -214,5 +214,3 @@ func TestUserService_RegisterUser_UsernameTaken(t *testing.T) {
 // - Success
 // - UserNotFound
 // - Store GetByEmail returning an error
-
-} 

@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"gamify_journal/internal/models" // Assumes module name is 'gamify_journal'
+	"github.com/adrianvalentim/gamify_journal/internal/models" // Updated import path
 )
 
 var DB *gorm.DB

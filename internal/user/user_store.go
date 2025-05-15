@@ -5,8 +5,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"gamify_journal/internal/models"
-	"gamify_journal/internal/platform/database"
+	"github.com/adrianvalentim/gamify_journal/internal/models"
+	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 )
 
 // Store defines the interface for user data storage operations.

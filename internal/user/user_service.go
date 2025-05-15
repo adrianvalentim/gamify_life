@@ -1,1 +1,215 @@
-package user\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"regexp\"\n\t\"strings\"\n\t\"time\"\n\t\"unicode\"\n\n\t\"github.com/google/uuid\"\n\t\"golang.org/x/crypto/bcrypt\"\n\n\t\"gamify_journal/internal/models\"\n)\n\n// Pre-defined error variables for common user service issues.\nvar (\n\tErrUserNotFound       = errors.New(\"user not found\")\n\tErrEmailTaken         = errors.New(\"email is already taken\")\n\tErrUsernameTaken      = errors.New(\"username is already taken\")\n\tErrInvalidEmailFormat = errors.New(\"invalid email format\")\n\tErrPasswordTooShort   = errors.New(\"password must be at least 8 characters long\")\n\tErrPasswordComplexity = errors.New(\"password must contain at least one uppercase letter, one lowercase letter, and one digit\")\n\tErrInvalidCredentials = errors.New(\"invalid email or password\")\n\tErrValidation         = errors.New(\"validation failed\") // Generic validation error\n)\n\n// Service defines the interface for user-related business logic operations.\ntype Service interface {\n\tRegisterUser(username, email, password string) (*models.User, error)\n\tGetUserByID(id string) (*models.User, error)\n\tGetUserByEmail(email string) (*models.User, error)\n\tAuthenticateUser(email, password string) (*models.User, error)\n\t// UpdateUserProfile(userID string, updates map[string]interface{}) (*models.User, error)\n\t// ChangePassword(userID, oldPassword, newPassword string) error\n}\n\n// service implements the Service interface for user operations.\ntype service struct {\n\tstore Store // Dependency on the Store interface for data persistence\n}\n\n// NewService creates and returns a new user service instance.\nfunc NewService(store Store) Service {\n\treturn &service{store: store}\n}\n\nconst ( \n\tminPasswordLength = 8\n\tbcryptCost        = bcrypt.DefaultCost // Or a higher cost like 12-14 for better security\n)\n\n// emailRegex is a basic regex for email validation.\nvar emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\'-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)\n\nfunc (s *service) hashPassword(password string) (string, error) {\n\thashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)\n\tif err != nil {\n\t\treturn \"\", fmt.Errorf(\"failed to hash password: %w\", err)\n\t}\n\treturn string(hashedBytes), nil\n}\n\nfunc (s *service) checkPasswordHash(password, hash string) bool {\n\terr := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))\n\treturn err == nil\n}\n\nfunc (s *service) validatePasswordComplexity(password string) error {\n\tif len(password) < minPasswordLength {\n\t\treturn ErrPasswordTooShort\n\t}\n\tvar hasUpper, hasLower, hasDigit bool\n\tfor _, char := range password {\n\t\tswitch {\n\t\tcase unicode.IsUpper(char):\n\t\t\thasUpper = true\n\t\tcase unicode.IsLower(char):\n\t\t\thasLower = true\n\t\tcase unicode.IsDigit(char):\n\t\t\thasDigit = true\n\t\t}\n\t}\n\tif !hasUpper || !hasLower || !hasDigit {\n\t\treturn ErrPasswordComplexity\n\t}\n\treturn nil\n}\n\nfunc (s *service) sanitizeAndValidateEmail(email string) (string, error) {\n\tsaneEmail := strings.ToLower(strings.TrimSpace(email))\n\tif !emailRegex.MatchString(saneEmail) {\n\t\treturn \"\", ErrInvalidEmailFormat\n\t}\n\treturn saneEmail, nil\n}\n\n// RegisterUser handles the logic for creating a new user account.\nfunc (s *service) RegisterUser(username, email, password string) (*models.User, error) {\n\tusername = strings.TrimSpace(username)\n\tif username == \"\" {\n\t\treturn nil, fmt.Errorf(\"%w: username cannot be empty\", ErrValidation)\n\t}\n\n\tsaneEmail, err := s.sanitizeAndValidateEmail(email)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\tif err := s.validatePasswordComplexity(password); err != nil {\n\t\treturn nil, err\n\t}\n\n\t// Check for existing user by email\n\texistingUser, err := s.store.GetByEmail(saneEmail)\n\tif err != nil && !errors.Is(err, gorm.ErrRecordNotFound) && existingUser != nil { // Defensive check against non-nil user on error\n\t\treturn nil, fmt.Errorf(\"error checking email existence: %w\", err)\n\t}\n\tif existingUser != nil {\n\t\treturn nil, ErrEmailTaken\n\t}\n\n\t// Check for existing user by username\n\texistingUser, err = s.store.GetByUsername(username)\n\tif err != nil && !errors.Is(err, gorm.ErrRecordNotFound) && existingUser != nil {\n\t\treturn nil, fmt.Errorf(\"error checking username existence: %w\", err)\n\t}\n\tif existingUser != nil {\n\t\treturn nil, ErrUsernameTaken\n\t}\n\n\thashedPassword, err := s.hashPassword(password)\n\tif err != nil {\n\t\treturn nil, err // Error from hashing\n\t}\n\n\tnewUser := &models.User{\n\t\tID:             uuid.NewString(),\n\t\tUsername:       username,\n\t\tEmail:          saneEmail,\n\t\tHashedPassword: hashedPassword,\n\t}\n\n\tif err := s.store.Create(newUser); err != nil {\n\t\t// This could be a database constraint error (e.g. unique index violation that slipped past checks)\n\t\treturn nil, fmt.Errorf(\"failed to create user in store: %w\", err)\n\t}\n\n\t// Important: Clear the hashed password before returning the user model\n\tnewUser.HashedPassword = \"\"\n\treturn newUser, nil\n}\n\n// GetUserByID retrieves a user by their ID, ensuring password hash is not exposed.\nfunc (s *service) GetUserByID(id string) (*models.User, error) {\n\tuser, err := s.store.GetByID(id)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"store error fetching user by ID: %w\", err)\n\t}\n\tif user == nil { // store.GetByID returns (nil, nil) if not found\n\t\treturn nil, ErrUserNotFound\n\t}\n\tuser.HashedPassword = \"\" // Sanitize output\n\treturn user, nil\n}\n\n// GetUserByEmail retrieves a user by email, ensuring password hash is not exposed.\nfunc (s *service) GetUserByEmail(email string) (*models.User, error) {\n\tsaneEmail, err := s.sanitizeAndValidateEmail(email)\n\tif err != nil {\n\t\t// Allow retrieval even if format is odd, but log it? Or enforce strict format here too?\n\t\t// For now, let's proceed with the sanitized email for lookup.\n\t\tsaneEmail = strings.ToLower(strings.TrimSpace(email)) // Basic sanitization if regex fails\n\t}\n\n\tuser, err := s.store.GetByEmail(saneEmail)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"store error fetching user by email: %w\", err)\n\t}\n\tif user == nil {\n\t\treturn nil, ErrUserNotFound\n\t}\n\tuser.HashedPassword = \"\" // Sanitize output\n\treturn user, nil\n}\n\n// AuthenticateUser validates user credentials (email and password).\nfunc (s *service) AuthenticateUser(email, password string) (*models.User, error) {\n\tsaneEmail, err := s.sanitizeAndValidateEmail(email)\n\tif err != nil {\n\t\t// For authentication, if the email format is bad, it's likely an invalid attempt.\n\t\treturn nil, ErrInvalidCredentials\n\t}\n\n\tif password == \"\" {\n\t\treturn nil, ErrInvalidCredentials\n\t}\n\n\tuser, err := s.store.GetByEmail(saneEmail) // Login is typically via email\n\tif err != nil {\n\t\t// Log internal store error but return generic credential error to user\n\t\t// log.Printf(\"Store error during authentication for email %s: %v\", saneEmail, err)\n\t\treturn nil, ErrInvalidCredentials\n\t}\n\tif user == nil { // User not found\n\t\treturn nil, ErrInvalidCredentials\n\t}\n\n\tif !s.checkPasswordHash(password, user.HashedPassword) {\n\t\treturn nil, ErrInvalidCredentials // Password does not match\n\t}\n\n\t// Authentication successful, clear password before returning user model\n\tuser.HashedPassword = \"\"\n\treturn user, nil\n}\n 
+package user
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+	"unicode"
+
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/adrianvalentim/gamify_journal/internal/models"
+)
+
+// Pre-defined error variables for common user service issues.
+var (
+	ErrUserNotFound       = errors.New("user not found")
+	ErrEmailTaken         = errors.New("email is already taken")
+	ErrUsernameTaken      = errors.New("username is already taken")
+	ErrInvalidEmailFormat = errors.New("invalid email format")
+	ErrPasswordTooShort   = errors.New("password must be at least 8 characters long")
+	ErrPasswordComplexity = errors.New("password must contain at least one uppercase letter, one lowercase letter, and one digit")
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrValidation         = errors.New("validation failed") // Generic validation error
+)
+
+// Service defines the interface for user-related business logic operations.
+type Service interface {
+	RegisterUser(username, email, password string) (*models.User, error)
+	GetUserByID(id string) (*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
+	AuthenticateUser(email, password string) (*models.User, error)
+	// UpdateUserProfile(userID string, updates map[string]interface{}) (*models.User, error)
+	// ChangePassword(userID, oldPassword, newPassword string) error
+}
+
+// service implements the Service interface for user operations.
+type service struct {
+	store Store // Dependency on the Store interface for data persistence
+}
+
+// NewService creates and returns a new user service instance.
+func NewService(store Store) Service {
+	return &service{store: store}
+}
+
+const (
+	minPasswordLength = 8
+	bcryptCost        = bcrypt.DefaultCost // Or a higher cost like 12-14 for better security
+)
+
+// emailRegex is a basic regex for email validation.
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\'-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+func (s *service) hashPassword(password string) (string, error) {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %w", err)
+	}
+	return string(hashedBytes), nil
+}
+
+func (s *service) checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+func (s *service) validatePasswordComplexity(password string) error {
+	if len(password) < minPasswordLength {
+		return ErrPasswordTooShort
+	}
+	var hasUpper, hasLower, hasDigit bool
+	for _, char := range password {
+		switch {
+		case unicode.IsUpper(char):
+			hasUpper = true
+		case unicode.IsLower(char):
+			hasLower = true
+		case unicode.IsDigit(char):
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return ErrPasswordComplexity
+	}
+	return nil
+}
+
+func (s *service) sanitizeAndValidateEmail(email string) (string, error) {
+	saneEmail := strings.ToLower(strings.TrimSpace(email))
+	if !emailRegex.MatchString(saneEmail) {
+		return "", ErrInvalidEmailFormat
+	}
+	return saneEmail, nil
+}
+
+// RegisterUser handles the creation of a new user.
+func (s *service) RegisterUser(username, email, password string) (*models.User, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, fmt.Errorf("%w: username cannot be empty", ErrValidation)
+	}
+
+	saneEmail, err := s.sanitizeAndValidateEmail(email)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.validatePasswordComplexity(password); err != nil {
+		return nil, err
+	}
+
+	// Check if email is already taken
+	existingUserByEmail, err := s.store.GetByEmail(saneEmail)
+	if err != nil {
+		return nil, fmt.Errorf("error checking email availability: %w", err)
+	}
+	if existingUserByEmail != nil {
+		return nil, ErrEmailTaken
+	}
+
+	// Check if username is already taken
+	existingUserByUsername, err := s.store.GetByUsername(username)
+	if err != nil {
+		return nil, fmt.Errorf("error checking username availability: %w", err)
+	}
+	if existingUserByUsername != nil {
+		return nil, ErrUsernameTaken
+	}
+
+	hashedPassword, err := s.hashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	newUser := &models.User{
+		ID:             uuid.NewString(),
+		Username:       username,
+		Email:          saneEmail,
+		HashedPassword: hashedPassword,
+	}
+
+	if err := s.store.Create(newUser); err != nil {
+		return nil, fmt.Errorf("could not create user in store: %w", err)
+	}
+
+	newUser.HashedPassword = ""
+	return newUser, nil
+}
+
+// GetUserByID retrieves a user by their ID, ensuring password hash is not exposed.
+func (s *service) GetUserByID(id string) (*models.User, error) {
+	user, err := s.store.GetByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("store error fetching user by ID: %w", err)
+	}
+	if user == nil { // store.GetByID returns (nil, nil) if not found
+		return nil, ErrUserNotFound
+	}
+	user.HashedPassword = "" // Sanitize output
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user by email, ensuring password hash is not exposed.
+func (s *service) GetUserByEmail(email string) (*models.User, error) {
+	saneEmail, err := s.sanitizeAndValidateEmail(email)
+	if err != nil {
+		// Allow retrieval even if format is odd, but log it? Or enforce strict format here too?
+		// For now, let's proceed with the sanitized email for lookup.
+		saneEmail = strings.ToLower(strings.TrimSpace(email)) // Basic sanitization if regex fails
+	}
+
+	user, err := s.store.GetByEmail(saneEmail)
+	if err != nil {
+		return nil, fmt.Errorf("store error fetching user by email: %w", err)
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+	user.HashedPassword = "" // Sanitize output
+	return user, nil
+}
+
+// AuthenticateUser validates user credentials (email and password).
+func (s *service) AuthenticateUser(email, password string) (*models.User, error) {
+	saneEmail, err := s.sanitizeAndValidateEmail(email)
+	if err != nil {
+		// For authentication, if the email format is bad, it's likely an invalid attempt.
+		return nil, ErrInvalidCredentials
+	}
+
+	if password == "" {
+		return nil, ErrInvalidCredentials
+	}
+
+	user, err := s.store.GetByEmail(saneEmail) // Login is typically via email
+	if err != nil {
+		// Log internal store error but return generic credential error to user
+		// log.Printf("Store error during authentication for email %s: %v", saneEmail, err)
+		return nil, ErrInvalidCredentials
+	}
+	if user == nil { // User not found
+		return nil, ErrInvalidCredentials
+	}
+
+	if !s.checkPasswordHash(password, user.HashedPassword) {
+		return nil, ErrInvalidCredentials // Password does not match
+	}
+
+	// Authentication successful, clear password before returning user model
+	user.HashedPassword = ""
+	return user, nil
+}
+ 

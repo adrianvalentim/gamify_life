@@ -133,3 +133,54 @@ This document provides comprehensive information about the Gamify Journal projec
     *   Frontend: ESLint (via `next lint`). Prettier for formatting (Recommended - configure `package.json` script).
 *   **Naming Conventions**:
     *   Python: `
+
+==================================
+Go Backend Implementation Details
+==================================
+
+Module Name: github.com/adrianvalentim/gamify_journal (as per go.mod)
+
+Core Libraries:
+- Web Router: github.com/go-chi/chi/v5
+- ORM: gorm.io/gorm
+- PostgreSQL Driver: gorm.io/driver/postgres
+- UUID Generation: github.com/google/uuid
+- Password Hashing: golang.org/x/crypto/bcrypt
+
+User Module (`internal/user`):
+- `user_handler.go`: Handles HTTP requests for user registration, login, and retrieval. Defines request/response DTOs. Maps service errors to HTTP status codes.
+- `user_service.go`: Contains business logic for user operations. Validates input, hashes passwords, checks for duplicates, interacts with the user store. Ensures password hashes are not exposed from service methods.
+- `user_store.go`: Implements data persistence using GORM. Provides CRUD-like operations for user models. Decouples service layer from direct database implementation.
+- `user_service_test.go`: Unit tests for the user service using a mock store to isolate business logic. Currently covers successful registration and some failure cases (email/username taken).
+
+Database (`internal/platform/database`):
+- `database.go`: Manages PostgreSQL connection via GORM. Reads DSN from `DB_DSN` environment variable with a fallback for local development.
+- Auto-migrations are performed on startup via `DB.AutoMigrate()` for all defined models in `internal/models/`.
+
+Models (`internal/models`):
+- Structs define the schema for: User, JournalEntry, Tag, Achievement, UserProgress, Quest (with embedded Task).
+- GORM tags are used for database mapping (e.g., `gorm:"primaryKey"`, `gorm:"uniqueIndex"`, `gorm:"many2many"`).
+- JSON tags are used for API request/response serialization (e.g., `json:"username"`, `json:"-"`).
+- Timestamps (`CreatedAt`, `UpdatedAt` in `models.User`) are automatically handled by GORM.
+
+Error Handling:
+- Service layer defines custom error variables (e.g., `ErrUserNotFound`, `ErrEmailTaken`).
+- Handlers map these service errors and other issues to appropriate HTTP status codes and JSON error responses.
+
+Testing Strategy (Current):
+- Unit tests for the service layer (`user_service_test.go`) using mock stores. Passed initial tests for registration success and email/username taken.
+- TODO: Expand unit test coverage for all service methods and edge cases in `user_service_test.go`.
+- TODO: Consider integration tests for the store layer (interacting with a test database).
+- TODO: Consider E2E/integration tests for HTTP handlers.
+
+Authentication (Initial):
+- User registration and login implemented.
+- Password hashing uses bcrypt.
+- JWT token generation and authentication middleware are TODO items.
+- `GET /api/v1/users/{userID}` is currently not protected.
+
+Key Design Decisions:
+- Separation of concerns: handler -> service -> store.
+- Dependency injection: Services take Store interfaces, Handlers take Service interfaces.
+- Explicit error handling.
+- Go-idiomatic structure and practices.

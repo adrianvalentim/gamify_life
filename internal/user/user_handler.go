@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time" // Added for time formatting
 
-	"gamify_journal/internal/models"
+	"github.com/adrianvalentim/gamify_journal/internal/models"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -27,7 +27,8 @@ type LoginUserRequest struct {
 }
 
 // UserResponse is the sanitized user data sent back to clients.
-// It omits sensitive information like the password hash.	ype UserResponse struct {
+// It omits sensitive information like the password hash.
+type UserResponse struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`

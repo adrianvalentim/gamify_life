@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"gamify_journal/internal/platform/database" // Adjust if your module name is different
-	"gamify_journal/internal/user"                // Import the user package
+	"github.com/adrianvalentim/gamify_journal/internal/platform/database" // Updated import path
+	"github.com/adrianvalentim/gamify_journal/internal/user"                // Updated import path
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
