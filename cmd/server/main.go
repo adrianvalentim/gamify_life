@@ -80,21 +80,21 @@ func main() {
 // userRouter defines routes related to user management (e.g., register, get user details)
 func userRouter(h *user.Handler) http.Handler {
 	r := chi.NewRouter()
-	r.Post("/register", h.handleRegisterUser) // POST /api/v1/users/register
+	r.Post("/register", h.HandleRegisterUser) // POST /api/v1/users/register
 	// GET /api/v1/users/{userID}
 	// Note: handleGetUserByID is already part of the handler passed to MountRoutes in user_handler.go
 	// So, if MountRoutes in user_handler.go handles "/{userID}", we might not need it here explicitly
 	// Let's adjust user_handler.go's MountRoutes to be more flexible or define specific routes here.
 	// For now, assuming user_handler.MountRoutes sets up /{userID}
 	// We can make it more explicit by calling specific handler methods for specific sub-routes.
-	r.Get("/{userID}", h.handleGetUserByID)
+	r.Get("/{userID}", h.HandleGetUserByID)
 	return r
 }
 
 // authRouter defines routes related to authentication (e.g., login, logout, refresh token)
 func authRouter(h *user.Handler) http.Handler {
 	r := chi.NewRouter()
-	r.Post("/login", h.handleLoginUser) // POST /api/v1/auth/login
+	r.Post("/login", h.HandleLoginUser) // POST /api/v1/auth/login
 	// r.Post("/logout", h.handleLogoutUser) // TODO: Implement logout
 	// r.Post("/refresh", h.handleRefreshToken) // TODO: Implement token refresh
 	return r

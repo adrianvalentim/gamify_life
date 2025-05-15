@@ -56,7 +56,7 @@ func NewHandler(service Service) *Handler {
 
 // --- Handler Functions ---
 
-func (h *Handler) handleRegisterUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	var req RegisterUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
@@ -89,7 +89,7 @@ func (h *Handler) handleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, userResp)
 }
 
-func (h *Handler) handleLoginUser(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	var req LoginUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload: "+err.Error())
@@ -117,7 +117,7 @@ func (h *Handler) handleLoginUser(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, AuthResponse{User: userResp, Token: token})
 }
 
-func (h *Handler) handleGetUserByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement authentication middleware to protect this endpoint.
 	// The userID might come from the authenticated user's token (e.g., GET /users/me)
 	// or an admin might be allowed to get any user by ID.
