@@ -1,0 +1,23 @@
+# Compiled Go binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# If your main binary is named 'server' (from cmd/server/main.go)
+server
+# Or if it matches the project name
+gamify_journal
+
+# Test coverage files
+coverage.out
+coverage.html
+profile.out
+
+# Environment file (if you were to use one, though you use DB_DSN env var)
+# .env
+
+# IDE / Editor specific (if not covered globally or you want specific backend settings ignored)
+# .vscode/*
+# .idea/* 

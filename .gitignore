@@ -6,17 +6,8 @@
 .AppleDouble
 .LSOverride
 
-# dependencies
-/node_modules
-/backend_python/venv/
-/backend_go/vendor/ # If using Go vendoring
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
+# Next.js output (if at root)
+.next/
 
 # debug
 npm-debug.log*
@@ -24,20 +15,19 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 *.log
+logs/
 
-# env files
-.env*
+# env files - Keep example files, ignore actual .env files
+.env
+.env.*
 !.env.example
-!.env.local.example # if you have frontend example
-backend_python/.env
-backend_go/.env # if Go app uses .env
+!.env.*.example
 
 # vercel
 .vercel
 
-# typescript
+# typescript build info
 *.tsbuildinfo
-# next-env.d.ts # Often committed, re-evaluate if needed
 
 # IDE / Editor specific
 .vscode/
@@ -45,21 +35,27 @@ backend_go/.env # if Go app uses .env
 *.swp
 *~
 
-# Python specific
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-/pip-selfcheck.json
-pip-log.txt
+# Test outputs (if they are at the root)
+# /htmlcov/
+# /.pytest_cache/
+# .coverage
+# .tox/
 
-# SQLite
-*.sqlite3
-*.db3
-
-# Test outputs
-/htmlcov/
-/.pytest_cache/
-.coverage
-.tox/
+# Remove previously specific entries, now handled by subdir .gitignores:
+# /node_modules
+# /backend_python/venv/
+# /backend_go/vendor/
+# /.next/
+# /out/
+# /build
+# backend_python/.env
+# backend_go/.env
+# __pycache__/
+# *.pyc
+# *.pyo
+# *.pyd
+# .Python
+# /pip-selfcheck.json
+# pip-log.txt
+# *.sqlite3
+# *.db3

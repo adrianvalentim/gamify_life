@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Next.js build outputs
+.next/
+out/
+
+# Production & Build artifacts
+build/
+.env.local
+.env.production
+.env.development
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# TypeScript cache file
+*.tsbuildinfo
+
+# Editor directories and files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/*
+!.idea/workspace.xml
+# Local user settings
+.user
+
+# Optional: Unused files from `create-next-app`
+# public/next.svg
+# public/vercel.svg 
