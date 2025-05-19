@@ -22,10 +22,10 @@ O **Gamify Journal** é uma plataforma que transforma a experiência de escrita 
 - **Radix UI**: Componentes acessíveis para interfaces de usuário
 
 ### Backend
-- **FastAPI**: Framework moderno e rápido para construção de APIs com Python
-- **SQLAlchemy**: ORM para interação com banco de dados
-- **Pydantic**: Validação de dados e settings
-- **SQLite**: Banco de dados leve para desenvolvimento
+- **Go**: Linguagem de programação para o backend.
+- **Chi (v5)**: Framework web/roteador leve para Go.
+- **GORM**: ORM para interação com banco de dados PostgreSQL.
+- **PostgreSQL**: Banco de dados relacional.
 
 ## Backend (Go)
 
@@ -98,30 +98,28 @@ go test ./internal/user/...
 1. Clone o repositório
 2. Instale as dependências:
    ```bash
-   npm install
+   pnpm install
    ```
 3. Inicie o servidor de desenvolvimento:
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
-### Backend
-1. Instale as dependências do Python:
-   ```bash
-   pip3 install -r backend/requirements.txt
-   ```
-2. Inicie o servidor FastAPI:
-   ```bash
-   cd backend
-   python3 -m uvicorn main:app --reload
-   ```
+### Backend (Go)
+
+Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre configuração e execução do backend em Go.
+
+Os passos básicos são:
+1. Certifique-se de ter o Go (1.24.2+ recomendado) e o PostgreSQL instalados.
+2. Configure a variável de ambiente `DB_DSN`.
+3. Execute o servidor: `go run cmd/server/main.go` (a partir da raiz do projeto).
 
 ## Estrutura do Projeto
 
 - `/app`: Código frontend Next.js
 - `/components`: Componentes React reutilizáveis
-- `/backend`: API FastAPI e lógica do servidor
-  - `/routers`: Endpoints da API organizados por funcionalidade
-  - `/models.py`: Modelos SQLAlchemy para o banco de dados
-  - `/schemas.py`: Schemas Pydantic para validação de dados
+- `/cmd`: Aplicações principais do backend Go (e.g. `cmd/server/main.go`)
+- `/internal`: Código privado do backend Go (modelos, serviços, handlers, etc.)
+- `go.mod`, `go.sum`: Arquivos de módulos Go para gerenciamento de dependências do backend.
+- Consulte a seção "Backend (Go)" para uma descrição mais detalhada da estrutura do backend.
 

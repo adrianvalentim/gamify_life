@@ -13,48 +13,53 @@ This document provides comprehensive information about the Gamify Journal projec
 
 ## 2. Technology Stack
 
-*   **Backend Language**: Python 3.x (compatible with dependencies)
-*   **Backend Framework**: FastAPI 0.109.1
 *   **Frontend Language**: TypeScript 5.x
 *   **Frontend Framework/Library**: Next.js 15.2.4 (React 19.x)
-*   **Database**: SQLAlchemy 2.0.25 (Assumed PostgreSQL/SQLite, needs confirmation via `DATABASE_URL`)
-*   **ORM/Database Client**: SQLAlchemy 2.0.25 (Core/ORM), Alembic 1.12.1 (Migrations)
+*   **Backend Language**: Go (e.g., 1.24.2+)
+*   **Backend Framework/Router**: Chi (v5)
+*   **Database**: PostgreSQL (confirmed via `DB_DSN` for Go backend)
+*   **ORM/Database Client**: GORM (`gorm.io/gorm`)
+*   **Backend Libraries**:
+    *   `gorm.io/driver/postgres` (PostgreSQL driver for GORM)
+    *   `github.com/google/uuid` (UUID generation)
+    *   `golang.org/x/crypto/bcrypt` (Password hashing)
 *   **Styling**: Tailwind CSS 3.4.17 (using shadcn/ui components)
 *   **State Management (Frontend)**: React Context API / Local State (Default Next.js/React, check for dedicated library usage if needed)
 *   **External APIs/Services**:
     *   [List any external services, e.g., OpenAI API for potential AI features, Stripe for payments (if planned)]
 *   **Development Tools**:
-    *   Package Managers: pip (backend), pnpm (frontend)
-    *   Linters: Flake8 (Backend - assumed, add if used), ESLint (Frontend - via `next lint`)
-    *   Formatters: Black (Backend - assumed, add if used), Prettier (Frontend - assumed, check config)
-    *   Build Tools: Next.js build process
-    *   Testing Frameworks: [e.g., Pytest (Backend - add if used), Jest/React Testing Library (Frontend - add if used)]
+    *   Package Managers: Go Modules (backend), pnpm (frontend)
+    *   Linters: `gofmt` (standard Go formatter), `golangci-lint` (Recommended for Go), ESLint (Frontend - via `next lint`)
+    *   Formatters: `gofmt` (standard Go formatter), Prettier (Frontend - assumed, check config)
+    *   Build Tools: Go build tools (`go build`), Next.js build process
+    *   Testing Frameworks: Go testing package (`go test`), [e.g., Jest/React Testing Library (Frontend - add if used)]
     *   Version Control: Git
 
 ## 3. Architecture Overview
 
-*   **High-Level Design**: Monolithic application with distinct frontend (Next.js) and backend (FastAPI) components. API-driven communication.
+*   **High-Level Design**: Monolithic application with distinct frontend (Next.js) and backend (Go with Chi router) components. API-driven communication. The Go backend code (`cmd/`, `internal/`) resides at the project root alongside frontend code.
 *   **Key Components**:
-    *   `backend/`: Handles API requests, business logic, database interactions (SQLAlchemy models, Pydantic schemas, FastAPI routers). Includes user auth, journal entries, quests, characters modules.
-        *   `models.py`: Database schema definitions (SQLAlchemy).
-        *   `routers/`: API endpoint definitions (FastAPI).
-        *   `schemas.py`: Data validation/serialization (Pydantic).
-        *   `database.py`: Database connection and session management.
-        *   `security.py`: Authentication and password handling logic..
-        *   `main.py`: FastAPI application entry point and middleware configuration.
-    *   (Root directory acts as frontend): Next.js application structure.
+    *   **Go Backend** (at project root): Handles API requests, business logic, database interactions.
+        *   `cmd/server/main.go`: Main application entry point, server setup.
+        *   `internal/models/`: Go struct definitions for database schema (using GORM tags).
+        *   `internal/<module>/<module>_handler.go` (e.g., `internal/user/user_handler.go`): HTTP request handlers (Chi). Defines request/response DTOs.
+        *   `internal/<module>/<module>_service.go` (e.g., `internal/user/user_service.go`): Business logic for specific modules.
+        *   `internal/<module>/<module>_store.go` (e.g., `internal/user/user_store.go`): Data persistence logic using GORM.
+        *   `internal/platform/database/database.go`: Database connection (GORM) and session management.
+        *   Authentication logic would reside in relevant Go packages/modules (e.g., using bcrypt for passwords, JWT library for tokens).
+    *   **Frontend** (Next.js application structure, also at project root):
         *   `app/`: Next.js App Router structure (pages, layouts).
         *   `components/`: Reusable UI elements (likely shadcn/ui based).
         *   `lib/`: Utility functions (e.g., `cn` for classnames).
         *   `hooks/`: Custom React hooks.
         *   `styles/`: Global CSS (`globals.css`).
-*   **Data Flow**: User interacts with Next.js Frontend -> Frontend sends API request to FastAPI Backend -> Backend processes request (validates with Pydantic, interacts with DB via SQLAlchemy, applies gamification logic) -> Backend sends JSON response to Frontend -> Frontend updates UI (React state).
-*   **Design Patterns**: [List key patterns, e.g., Repository pattern (potentially in DB interactions), Service layer (implied by router separation), Dependency Injection (FastAPI's Depends)]
+*   **Data Flow**: User interacts with Next.js Frontend -> Frontend sends API request to Go Backend -> Backend processes request (validates DTOs, interacts with DB via GORM, applies gamification logic) -> Backend sends JSON response to Frontend -> Frontend updates UI (React state).
+*   **Design Patterns**: Separation of concerns (handler -> service -> store in Go backend), Dependency Injection (Go practices), [List other key patterns, e.g., Repository pattern (potentially in DB interactions with GORM)]
 
 ## 4. Setup and Installation
 
 *   **Prerequisites**:
-    *   Python 3.x (check specific version if needed)
+    *   Go (e.g., version 1.24.2+ as per `go.mod` or project requirements)
     *   Node.js v18+ (Recommended for Next.js/pnpm)
     *   pnpm (`npm install -g pnpm`)
     *   [Database Server if not using SQLite, e.g., PostgreSQL]
@@ -64,54 +69,50 @@ This document provides comprehensive information about the Gamify Journal projec
     *   Main Branch: `main` (or `master`)
     *   Development Branches: Feature branches named like `feature/add-streak-counter`, bugfixes `fix/login-error`.
 *   **Dependency Installation**:
-    *   Backend: `cd backend && python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt`
-    *   Frontend: `pnpm install` (run in root directory)
+    *   Backend (Go): `go mod tidy` (run in project root, downloads dependencies defined in `go.mod`)
+    *   Frontend: `pnpm install` (run in project root)
 *   **Configuration**:
-    *   Backend: Copy `backend/.env.example` to `backend/.env` (if exists) and fill variables like `DATABASE_URL`, `SECRET_KEY`.
-    *   Frontend: Copy `.env.local.example` to `.env.local` (if exists) and fill variables (e.g., `NEXT_PUBLIC_API_URL=http://localhost:8000`).
-    *   Ensure backend `SECRET_KEY` is generated securely.
+    *   Backend (Go): Uses environment variables. Key variable is `DB_DSN` for PostgreSQL connection (e.g., `export DB_DSN="host=localhost user=youruser password=yourpassword dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC"`). Other variables like `PORT` might be used. No `.env` file usage confirmed, manage environment variables directly.
+    *   Frontend: Copy `.env.local.example` to `.env.local` (if exists) and fill variables (e.g., `NEXT_PUBLIC_API_URL=http://localhost:8080` - adjust port if Go backend uses a different one).
+    *   Ensure backend secrets are managed securely (not committed to Git).
 *   **Database Setup**:
-    *   Ensure Database server (e.g., PostgreSQL) is running OR confirm SQLite usage.
-    *   Configure `DATABASE_URL` in `backend/.env`.
-    *   Create the database if necessary (e.g., `CREATE DATABASE gamify_journal;`).
-    *   Run migrations: `cd backend && alembic upgrade head`
-    *   (Optional) Seed database: [Add command if seeding scripts exist]
+    *   Ensure PostgreSQL server is running.
+    *   Configure `DB_DSN` environment variable for the Go backend.
+    *   Create the database if necessary (e.g., `CREATE DATABASE gamify_journal_db;`).
+    *   Database migrations are handled automatically by GORM on application startup (`DB.AutoMigrate()` in `internal/platform/database/database.go`).
+    *   (Optional) Seed database: [Add command if seeding scripts exist for Go backend]
 *   **Secrets Management**:
-    *   Sensitive keys (API keys, production database credentials, `SECRET_KEY`) should NEVER be committed to Git.
-    *   Use `.env` / `.env.local` files for local development.
-    *   For production/staging, use environment variables provided by the hosting platform or a dedicated secrets manager.
+    *   Sensitive keys (API keys, production database credentials like `DB_DSN`, any backend secret keys) should NEVER be committed to Git.
+    *   Use environment variables for local development and production/staging (provided by hosting platform or secrets manager).
 
 ## 5. Running the Project
 
 *   **Development Servers**:
-    *   Backend: `cd backend && uvicorn main:app --reload --port 8000` (Ensure `venv` is active or use `venv/bin/uvicorn`)
-    *   Frontend: `pnpm dev` (run in root directory)
+    *   Backend (Go): `go run cmd/server/main.go` (run in project root). Server typically runs on port 8080 unless `PORT` env var is set.
+    *   Frontend: `pnpm dev` (run in project root)
 *   **Running Tests**:
-    *   Backend: `cd backend && [pytest]` (Add `pytest` to `requirements.txt` if used)
+    *   Backend (Go): `go test ./...` or `go test ./internal/...` (run in project root, or specific package path).
     *   Frontend: `pnpm test` (Configure test runner like Jest if needed)
 *   **Linting/Formatting**:
-    *   Backend: `cd backend && [flake8 . && black .]` (Add linters/formatters to dev requirements if used)
+    *   Backend (Go): `gofmt -w .` (to format all Go files in the current directory and subdirectories), `golangci-lint run` (if `golangci-lint` is installed and configured).
     *   Frontend: `pnpm lint` (Uses Next.js built-in ESLint) / `pnpm format` (Add Prettier script if needed)
 
 ## 6. Codebase Structure
 
-*   `backend/`: Contains all backend-related code (Python/FastAPI).
-    *   `__init__.py`: Marks directory as Python package.
-    *   `main.py`: FastAPI application setup, middleware, main entry point.
-    *   `models.py`: SQLAlchemy database models.
-    *   `schemas.py`: Pydantic data validation schemas.
-    *   `routers/`: Directory containing API route modules (e.g., `users.py`, `entries.py`).
-    *   `database.py`: SQLAlchemy setup, database session management.
-    *   `security.py`: Authentication helpers (password hashing, JWT).
-    *   `requirements.txt`: Backend Python dependencies.
-    *   `.env.example`: Example environment variables for the backend.
-    *   `alembic/`: (Assumed, generated by `alembic init`) Alembic migration scripts directory.
-    *   `tests/`: (Recommended) Backend unit and integration tests.
-*   (Root Directory): Contains Frontend code (Next.js/React) and project config.
-    *   `app/`: Next.js App Router directory (layouts, pages, components).
-    *   `components/`: Shared UI components (likely includes shadcn/ui components).
-    *   `hooks/`: Custom React hooks.
-    *   `lib/`: Utility functions, potentially API client setup.
+*   **Project Root (`gamify_journal/`)**: Contains both frontend and backend code.
+    *   `cmd/server/main.go`: Go backend application entry point.
+    *   `internal/`: Go backend internal packages.
+        *   `internal/models/`: Database models (GORM structs).
+        *   `internal/user/`: Example module for user functionality (handlers, services, stores).
+        *   `internal/platform/database/`: Database connection and migration logic.
+        *   Other modules as the project grows.
+    *   `pkg/`: (Optional) Go backend shared libraries if any.
+    *   `go.mod`: Go backend module definition and dependencies.
+    *   `go.sum`: Go backend dependency checksums.
+    *   `app/`: Next.js App Router directory (layouts, pages, components for frontend).
+    *   `components/`: Shared UI components (likely includes shadcn/ui components for frontend).
+    *   `hooks/`: Custom React hooks (frontend).
+    *   `lib/`: Utility functions, potentially API client setup (frontend).
     *   `public/`: Static assets served directly.
     *   `styles/`: Global stylesheets (`globals.css`).
     *   `package.json`: Frontend dependencies and scripts (uses pnpm).
@@ -120,7 +121,6 @@ This document provides comprehensive information about the Gamify Journal projec
     *   `postcss.config.mjs`: PostCSS configuration.
     *   `tsconfig.json`: TypeScript configuration.
     *   `next.config.mjs`: Next.js configuration.
-    *   `.env.local.example`: Example environment variables for the frontend.
     *   `tests/`: (Recommended) Frontend tests.
 *   `detailed_info.txt`: This file.
 *   `README.md`: High-level project overview and basic setup instructions.
@@ -129,58 +129,38 @@ This document provides comprehensive information about the Gamify Journal projec
 ## 7. Coding Standards and Conventions
 
 *   **Style Guides**:
-    *   Backend: PEP 8 (enforced by Black - Recommended). Use Flake8 for linting (Recommended).
+    *   Backend (Go): Effective Go guidelines. Formatting enforced by `gofmt`. Use `golangci-lint` for comprehensive linting (Recommended).
     *   Frontend: ESLint (via `next lint`). Prettier for formatting (Recommended - configure `package.json` script).
 *   **Naming Conventions**:
-    *   Python: `
+    *   Go: Use `camelCase` for unexported identifiers, `PascalCase` (CamelCase with first letter uppercase) for exported identifiers. Package names are typically short, lowercase, single words.
+    *   Frontend: [Specify frontend naming conventions, e.g., PascalCase for React components, camelCase for variables/functions].
+*   **Commit Messages**: [e.g., Conventional Commits: `feat: add user login endpoint`, `fix: resolve issue with quest completion`]
+*   **Branching Strategy**: [e.g., Gitflow variant: `main`, `develop`, feature branches (`feature/feature-name`), bugfix branches (`bugfix/bug-name`), release branches (`release/version`)]
 
-==================================
-Go Backend Implementation Details
-==================================
+## 8. API Endpoints
 
-Module Name: github.com/adrianvalentim/gamify_journal (as per go.mod)
+*   Refer to the Go backend handlers (e.g., `internal/user/user_handler.go`) or API documentation (e.g., Swagger/OpenAPI if generated) for detailed API specifications.
+*   Initial endpoints (as per Go backend details):
+    *   `GET /health`: Health check.
+    *   `POST /api/v1/users/register`: Register a new user.
+    *   `POST /api/v1/auth/login`: Login an existing user.
+    *   `GET /api/v1/users/{userID}`: Get user details by ID.
 
-Core Libraries:
-- Web Router: github.com/go-chi/chi/v5
-- ORM: gorm.io/gorm
-- PostgreSQL Driver: gorm.io/driver/postgres
-- UUID Generation: github.com/google/uuid
-- Password Hashing: golang.org/x/crypto/bcrypt
+## 9. Deployment
 
-User Module (`internal/user`):
-- `user_handler.go`: Handles HTTP requests for user registration, login, and retrieval. Defines request/response DTOs. Maps service errors to HTTP status codes.
-- `user_service.go`: Contains business logic for user operations. Validates input, hashes passwords, checks for duplicates, interacts with the user store. Ensures password hashes are not exposed from service methods.
-- `user_store.go`: Implements data persistence using GORM. Provides CRUD-like operations for user models. Decouples service layer from direct database implementation.
-- `user_service_test.go`: Unit tests for the user service using a mock store to isolate business logic. Currently covers successful registration and some failure cases (email/username taken).
+*   **Frontend (Next.js)**: [e.g., Vercel, Netlify, AWS Amplify, Docker container]
+*   **Backend (Go)**: [e.g., Docker container on Cloud Run/ECS/Kubernetes, bare metal, serverless function if applicable]
+*   **Database (PostgreSQL)**: [e.g., Cloud SQL, RDS, self-hosted]
+*   **CI/CD**: [e.g., GitHub Actions, GitLab CI, Jenkins. Describe pipeline steps: lint, test, build, deploy.]
 
-Database (`internal/platform/database`):
-- `database.go`: Manages PostgreSQL connection via GORM. Reads DSN from `DB_DSN` environment variable with a fallback for local development.
-- Auto-migrations are performed on startup via `DB.AutoMigrate()` for all defined models in `internal/models/`.
+## 10. Future Considerations / Roadmap
 
-Models (`internal/models`):
-- Structs define the schema for: User, JournalEntry, Tag, Achievement, UserProgress, Quest (with embedded Task).
-- GORM tags are used for database mapping (e.g., `gorm:"primaryKey"`, `gorm:"uniqueIndex"`, `gorm:"many2many"`).
-- JSON tags are used for API request/response serialization (e.g., `json:"username"`, `json:"-"`).
-- Timestamps (`CreatedAt`, `UpdatedAt` in `models.User`) are automatically handled by GORM.
+*   Implement JWT token generation and authentication middleware for Go backend.
+*   Expand unit test coverage for all service methods and edge cases in `user_service_test.go`.
+*   Consider integration tests for the store layer (interacting with a test database).
+*   Consider E2E/integration tests for HTTP handlers.
+*   [Add other planned features or improvements]
 
-Error Handling:
-- Service layer defines custom error variables (e.g., `ErrUserNotFound`, `ErrEmailTaken`).
-- Handlers map these service errors and other issues to appropriate HTTP status codes and JSON error responses.
+---
 
-Testing Strategy (Current):
-- Unit tests for the service layer (`user_service_test.go`) using mock stores. Passed initial tests for registration success and email/username taken.
-- TODO: Expand unit test coverage for all service methods and edge cases in `user_service_test.go`.
-- TODO: Consider integration tests for the store layer (interacting with a test database).
-- TODO: Consider E2E/integration tests for HTTP handlers.
-
-Authentication (Initial):
-- User registration and login implemented.
-- Password hashing uses bcrypt.
-- JWT token generation and authentication middleware are TODO items.
-- `GET /api/v1/users/{userID}` is currently not protected.
-
-Key Design Decisions:
-- Separation of concerns: handler -> service -> store.
-- Dependency injection: Services take Store interfaces, Handlers take Service interfaces.
-- Explicit error handling.
-- Go-idiomatic structure and practices.
+This document aims to be a living guide. Please update it as the project evolves.
