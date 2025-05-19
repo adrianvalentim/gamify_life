@@ -41,14 +41,15 @@ Esta seção detalha o backend baseado em Go para a aplicação Gamify Journal.
 
 ### Estrutura do Projeto (Backend)
 
-*   `cmd/server/main.go`: Ponto de entrada principal da aplicação.
-*   `internal/`: Lógica interna da aplicação, não destinada à importação por outros projetos.
-    *   `internal/models/`: Define as structs dos modelos do banco de dados.
-    *   `internal/user/`: Gerenciamento de usuários (handlers, services, store).
-    *   `internal/platform/`: Funcionalidades centrais da plataforma.
-        *   `internal/platform/database/`: Lógica de conexão com o banco de dados e migrações.
-*   `pkg/`: (Atualmente não utilizado, mas reservado para bibliotecas compartilháveis, se houver).
-*   `api/`: (Atualmente não utilizado, poderia ser usado para arquivos de especificação de API como OpenAPI/Swagger).
+*   `backend/cmd/server/main.go`: Ponto de entrada principal da aplicação backend.
+*   `backend/internal/`: Lógica interna da aplicação backend, não destinada à importação por outros projetos.
+    *   `backend/internal/models/`: Define as structs dos modelos do banco de dados.
+    *   `backend/internal/user/`: Gerenciamento de usuários (handlers, services, store).
+    *   `backend/internal/platform/`: Funcionalidades centrais da plataforma.
+        *   `backend/internal/platform/database/`: Lógica de conexão com o banco de dados e migrações.
+*   `backend/pkg/`: (Atualmente não utilizado, mas reservado para bibliotecas compartilháveis, se houver).
+*   `backend/api/`: (Atualmente não utilizado, poderia ser usado para arquivos de especificação de API como OpenAPI/Swagger).
+*   `backend/go.mod`, `backend/go.sum`: Arquivos de módulos Go para gerenciamento de dependências do backend.
 
 ### Configuração e Execução
 
@@ -61,23 +62,29 @@ Esta seção detalha o backend baseado em Go para a aplicação Gamify Journal.
         export DB_DSN="host=localhost user=seuusuario password=suasenha dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC"
         ```
         (Atualize as credenciais e o nome do banco de dados conforme necessário).
-        Alternativamente, você pode modificar a DSN padrão em `internal/platform/database/database.go` para desenvolvimento local (não recomendado para credenciais sensíveis).
-3.  **Instalar Dependências:** As dependências são gerenciadas por Go Modules. Elas serão baixadas automaticamente ao construir ou executar o projeto.
-4.  **Executar Migrações e Iniciar o Servidor:**
-    A partir da raiz do projeto (`gamify_journal/`):
+        Alternativamente, você pode modificar a DSN padrão em `backend/internal/platform/database/database.go` para desenvolvimento local (não recomendado para credenciais sensíveis).
+3.  **Instalar Dependências (Backend):** As dependências são gerenciadas por Go Modules. Elas serão baixadas automaticamente ao construir ou executar o projeto. Navegue até a pasta do backend:
+    ```bash
+    cd backend
+    go mod tidy # Para garantir que as dependências estão sincronizadas
+    ```
+4.  **Executar Migrações e Iniciar o Servidor (Backend):**
+    Ainda dentro da pasta `backend/`:
     ```bash
     go run cmd/server/main.go
     ```
     Isso também executará as migrações do banco de dados para criar/atualizar tabelas. O servidor normalmente iniciará em `http://localhost:8080`, a menos que a variável de ambiente `PORT` esteja definida.
 
-### Executando Testes
+### Executando Testes (Backend)
 
-Para executar testes unitários para o backend:
+Para executar testes unitários para o backend (a partir da pasta `backend/`):
 ```bash
+cd backend
 go test ./internal/...
 ```
-Para executar testes para um pacote específico (ex: user):
+Para executar testes para um pacote específico (ex: user, a partir da pasta `backend/`):
 ```bash
+cd backend
 go test ./internal/user/...
 ```
 
@@ -95,31 +102,40 @@ go test ./internal/user/...
 ## Como Iniciar
 
 ### Frontend
-1. Clone o repositório
-2. Instale as dependências:
+1. Clone o repositório.
+2. Navegue até a pasta do frontend e instale as dependências:
    ```bash
+   cd frontend
    pnpm install
    ```
-3. Inicie o servidor de desenvolvimento:
+3. Inicie o servidor de desenvolvimento (a partir da pasta `frontend/`):
    ```bash
    pnpm dev
    ```
+   O frontend estará disponível em `http://localhost:3000` (ou outra porta, se configurado).
 
 ### Backend (Go)
 
-Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre configuração e execução do backend em Go.
+Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre configuração e execução do backend em Go. Os passos resumidos são (executados de dentro da pasta `backend/` após navegar até ela com `cd backend`):
 
-Os passos básicos são:
 1. Certifique-se de ter o Go (1.24.2+ recomendado) e o PostgreSQL instalados.
 2. Configure a variável de ambiente `DB_DSN`.
-3. Execute o servidor: `go run cmd/server/main.go` (a partir da raiz do projeto).
+3. Execute `go mod tidy` para instalar/verificar dependências.
+4. Execute o servidor: `go run cmd/server/main.go`.
+   O backend estará disponível em `http://localhost:8080` (ou outra porta, se configurado).
 
 ## Estrutura do Projeto
 
-- `/app`: Código frontend Next.js
-- `/components`: Componentes React reutilizáveis
-- `/cmd`: Aplicações principais do backend Go (e.g. `cmd/server/main.go`)
-- `/internal`: Código privado do backend Go (modelos, serviços, handlers, etc.)
-- `go.mod`, `go.sum`: Arquivos de módulos Go para gerenciamento de dependências do backend.
-- Consulte a seção "Backend (Go)" para uma descrição mais detalhada da estrutura do backend.
+- `frontend/`: Contém todo o código da aplicação frontend (Next.js).
+  - `frontend/app/`: Código frontend Next.js (App Router).
+  - `frontend/components/`: Componentes React reutilizáveis.
+  - `frontend/package.json`: Dependências e scripts do frontend.
+- `backend/`: Contém todo o código da aplicação backend (Go).
+  - `backend/cmd/`: Aplicações principais do backend Go (e.g. `main.go` do servidor).
+  - `backend/internal/`: Código privado do backend Go (modelos, serviços, handlers, etc.).
+  - `backend/go.mod`, `backend/go.sum`: Arquivos de módulos Go para gerenciamento de dependências do backend.
+- `README.md`: Este arquivo.
+- `docs/detailed_info.txt`: Informações detalhadas do projeto (para desenvolvedores).
+
+Consulte a seção "Backend (Go)" para uma descrição mais detalhada da estrutura interna do backend.
 

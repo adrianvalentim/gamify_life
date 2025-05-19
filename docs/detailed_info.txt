@@ -37,23 +37,24 @@ This document provides comprehensive information about the Gamify Journal projec
 
 ## 3. Architecture Overview
 
-*   **High-Level Design**: Monolithic application with distinct frontend (Next.js) and backend (Go with Chi router) components. API-driven communication. The Go backend code (`cmd/`, `internal/`) resides at the project root alongside frontend code.
+*   **High-Level Design**: Monolithic application with distinct frontend (Next.js) and backend (Go with Chi router) components, housed in separate `frontend/` and `backend/` directories respectively. API-driven communication.
 *   **Key Components**:
-    *   **Go Backend** (at project root): Handles API requests, business logic, database interactions.
-        *   `cmd/server/main.go`: Main application entry point, server setup.
-        *   `internal/models/`: Go struct definitions for database schema (using GORM tags).
-        *   `internal/<module>/<module>_handler.go` (e.g., `internal/user/user_handler.go`): HTTP request handlers (Chi). Defines request/response DTOs.
-        *   `internal/<module>/<module>_service.go` (e.g., `internal/user/user_service.go`): Business logic for specific modules.
-        *   `internal/<module>/<module>_store.go` (e.g., `internal/user/user_store.go`): Data persistence logic using GORM.
-        *   `internal/platform/database/database.go`: Database connection (GORM) and session management.
-        *   Authentication logic would reside in relevant Go packages/modules (e.g., using bcrypt for passwords, JWT library for tokens).
-    *   **Frontend** (Next.js application structure, also at project root):
-        *   `app/`: Next.js App Router structure (pages, layouts).
-        *   `components/`: Reusable UI elements (likely shadcn/ui based).
-        *   `lib/`: Utility functions (e.g., `cn` for classnames).
-        *   `hooks/`: Custom React hooks.
-        *   `styles/`: Global CSS (`globals.css`).
-*   **Data Flow**: User interacts with Next.js Frontend -> Frontend sends API request to Go Backend -> Backend processes request (validates DTOs, interacts with DB via GORM, applies gamification logic) -> Backend sends JSON response to Frontend -> Frontend updates UI (React state).
+    *   `backend/`: Contains all Go backend code. Handles API requests, business logic, database interactions.
+        *   `backend/cmd/server/main.go`: Main application entry point, server setup.
+        *   `backend/internal/models/`: Go struct definitions for database schema (using GORM tags).
+        *   `backend/internal/<module>/<module>_handler.go` (e.g., `backend/internal/user/user_handler.go`): HTTP request handlers (Chi). Defines request/response DTOs.
+        *   `backend/internal/<module>/<module>_service.go` (e.g., `backend/internal/user/user_service.go`): Business logic for specific modules.
+        *   `backend/internal/<module>/<module>_store.go` (e.g., `backend/internal/user/user_store.go`): Data persistence logic using GORM.
+        *   `backend/internal/platform/database/database.go`: Database connection (GORM) and session management.
+        *   Authentication logic would reside in relevant Go packages/modules within `backend/`.
+    *   `frontend/`: Contains all Next.js frontend code.
+        *   `frontend/app/`: Next.js App Router structure (pages, layouts).
+        *   `frontend/components/`: Reusable UI elements (likely shadcn/ui based).
+        *   `frontend/lib/`: Utility functions (e.g., `cn` for classnames).
+        *   `frontend/hooks/`: Custom React hooks.
+        *   `frontend/styles/`: Global CSS (`globals.css`).
+        *   `frontend/package.json`, `frontend/pnpm-lock.yaml`, etc.: Frontend specific configurations.
+*   **Data Flow**: User interacts with Next.js Frontend (running from `frontend/`) -> Frontend sends API request to Go Backend (running from `backend/`) -> Backend processes request (validates DTOs, interacts with DB via GORM, applies gamification logic) -> Backend sends JSON response to Frontend -> Frontend updates UI (React state).
 *   **Design Patterns**: Separation of concerns (handler -> service -> store in Go backend), Dependency Injection (Go practices), [List other key patterns, e.g., Repository pattern (potentially in DB interactions with GORM)]
 
 ## 4. Setup and Installation
@@ -69,18 +70,18 @@ This document provides comprehensive information about the Gamify Journal projec
     *   Main Branch: `main` (or `master`)
     *   Development Branches: Feature branches named like `feature/add-streak-counter`, bugfixes `fix/login-error`.
 *   **Dependency Installation**:
-    *   Backend (Go): `go mod tidy` (run in project root, downloads dependencies defined in `go.mod`)
-    *   Frontend: `pnpm install` (run in project root)
+    *   Backend (Go): `cd backend && go mod tidy` (run from project root, or `go mod tidy` from `backend/` dir). Downloads dependencies defined in `backend/go.mod`.
+    *   Frontend: `cd frontend && pnpm install` (run from project root, or `pnpm install` from `frontend/` dir).
 *   **Configuration**:
-    *   Backend (Go): Uses environment variables. Key variable is `DB_DSN` for PostgreSQL connection (e.g., `export DB_DSN="host=localhost user=youruser password=yourpassword dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC"`). Other variables like `PORT` might be used. No `.env` file usage confirmed, manage environment variables directly.
-    *   Frontend: Copy `.env.local.example` to `.env.local` (if exists) and fill variables (e.g., `NEXT_PUBLIC_API_URL=http://localhost:8080` - adjust port if Go backend uses a different one).
+    *   Backend (Go): Resides in `backend/`. Uses environment variables. Key variable is `DB_DSN`. Example: `export DB_DSN="host=localhost ..."`. Other variables like `PORT` might be used. No `.env` file usage confirmed; manage environment variables directly when running from `backend/`.
+    *   Frontend: Resides in `frontend/`. Copy `frontend/.env.local.example` to `frontend/.env.local` (if exists) and fill variables (e.g., `NEXT_PUBLIC_API_URL=http://localhost:8080`).
     *   Ensure backend secrets are managed securely (not committed to Git).
 *   **Database Setup**:
     *   Ensure PostgreSQL server is running.
-    *   Configure `DB_DSN` environment variable for the Go backend.
+    *   Configure `DB_DSN` environment variable for the Go backend (when running from `backend/`).
     *   Create the database if necessary (e.g., `CREATE DATABASE gamify_journal_db;`).
-    *   Database migrations are handled automatically by GORM on application startup (`DB.AutoMigrate()` in `internal/platform/database/database.go`).
-    *   (Optional) Seed database: [Add command if seeding scripts exist for Go backend]
+    *   Database migrations are handled automatically by GORM on application startup (`DB.AutoMigrate()` in `backend/internal/platform/database/database.go`). This happens when the Go backend is started from the `backend/` directory.
+    *   (Optional) Seed database: [Add command if seeding scripts exist for Go backend, to be run from `backend/`]
 *   **Secrets Management**:
     *   Sensitive keys (API keys, production database credentials like `DB_DSN`, any backend secret keys) should NEVER be committed to Git.
     *   Use environment variables for local development and production/staging (provided by hosting platform or secrets manager).
@@ -88,43 +89,42 @@ This document provides comprehensive information about the Gamify Journal projec
 ## 5. Running the Project
 
 *   **Development Servers**:
-    *   Backend (Go): `go run cmd/server/main.go` (run in project root). Server typically runs on port 8080 unless `PORT` env var is set.
-    *   Frontend: `pnpm dev` (run in project root)
+    *   Backend (Go): `cd backend && go run cmd/server/main.go` (run from project root). Server typically runs on port 8080 unless `PORT` env var is set.
+    *   Frontend: `cd frontend && pnpm dev` (run from project root). Server typically runs on port 3000.
 *   **Running Tests**:
-    *   Backend (Go): `go test ./...` or `go test ./internal/...` (run in project root, or specific package path).
-    *   Frontend: `pnpm test` (Configure test runner like Jest if needed)
+    *   Backend (Go): `cd backend && go test ./...` or `cd backend && go test ./internal/...` (run from project root, or relative from `backend/` dir).
+    *   Frontend: `cd frontend && pnpm test` (run from project root, or `pnpm test` from `frontend/` dir).
 *   **Linting/Formatting**:
-    *   Backend (Go): `gofmt -w .` (to format all Go files in the current directory and subdirectories), `golangci-lint run` (if `golangci-lint` is installed and configured).
-    *   Frontend: `pnpm lint` (Uses Next.js built-in ESLint) / `pnpm format` (Add Prettier script if needed)
+    *   Backend (Go): `cd backend && gofmt -w .` (to format all Go files in `backend/` and its subdirectories), `cd backend && golangci-lint run` (if `golangci-lint` is installed and configured).
+    *   Frontend: `cd frontend && pnpm lint` (Uses Next.js built-in ESLint), `cd frontend && pnpm format` (Add Prettier script if needed).
 
 ## 6. Codebase Structure
 
-*   **Project Root (`gamify_journal/`)**: Contains both frontend and backend code.
-    *   `cmd/server/main.go`: Go backend application entry point.
-    *   `internal/`: Go backend internal packages.
-        *   `internal/models/`: Database models (GORM structs).
-        *   `internal/user/`: Example module for user functionality (handlers, services, stores).
-        *   `internal/platform/database/`: Database connection and migration logic.
-        *   Other modules as the project grows.
-    *   `pkg/`: (Optional) Go backend shared libraries if any.
-    *   `go.mod`: Go backend module definition and dependencies.
-    *   `go.sum`: Go backend dependency checksums.
-    *   `app/`: Next.js App Router directory (layouts, pages, components for frontend).
-    *   `components/`: Shared UI components (likely includes shadcn/ui components for frontend).
-    *   `hooks/`: Custom React hooks (frontend).
-    *   `lib/`: Utility functions, potentially API client setup (frontend).
-    *   `public/`: Static assets served directly.
-    *   `styles/`: Global stylesheets (`globals.css`).
-    *   `package.json`: Frontend dependencies and scripts (uses pnpm).
-    *   `pnpm-lock.yaml`: Frontend lock file.
-    *   `tailwind.config.ts`: Tailwind CSS configuration.
-    *   `postcss.config.mjs`: PostCSS configuration.
-    *   `tsconfig.json`: TypeScript configuration.
-    *   `next.config.mjs`: Next.js configuration.
-    *   `tests/`: (Recommended) Frontend tests.
-*   `detailed_info.txt`: This file.
-*   `README.md`: High-level project overview and basic setup instructions.
-*   `.gitignore`: Specifies files/directories ignored by Git.
+*   **Project Root (`gamify_journal/`)**
+    *   `frontend/`: Contains all frontend-related code (Next.js/React).
+        *   `frontend/app/`: Next.js App Router directory.
+        *   `frontend/components/`: Shared UI components.
+        *   `frontend/hooks/`: Custom React hooks.
+        *   `frontend/lib/`: Utility functions.
+        *   `frontend/public/`: Static assets served directly.
+        *   `frontend/styles/`: Global stylesheets.
+        *   `frontend/package.json`: Frontend dependencies and scripts.
+        *   `frontend/pnpm-lock.yaml`: Frontend lock file.
+        *   `frontend/tailwind.config.ts`, `frontend/postcss.config.mjs`, `frontend/tsconfig.json`, `frontend/next.config.mjs`: Frontend configurations.
+        *   `frontend/.gitignore`: Frontend specific Git ignores.
+        *   `frontend/tests/`: (Recommended) Frontend tests.
+    *   `backend/`: Contains all backend-related code (Go).
+        *   `backend/cmd/server/main.go`: Go backend application entry point.
+        *   `backend/internal/`: Go backend internal packages (models, handlers, services, platform code).
+        *   `backend/pkg/`: (Optional) Go backend shared libraries.
+        *   `backend/go.mod`: Go backend module definition and dependencies.
+        *   `backend/go.sum`: Go backend dependency checksums.
+        *   `backend/.gitignore`: Backend specific Git ignores.
+        *   `backend/tests/`: (Recommended, if you create a top-level test dir for backend)
+    *   `docs/`: Contains project documentation.
+        *   `docs/detailed_info.txt`: This file.
+    *   `README.md`: High-level project overview and basic setup instructions.
+    *   `.gitignore`: Specifies global files/directories ignored by Git.
 
 ## 7. Coding Standards and Conventions
 
@@ -139,7 +139,7 @@ This document provides comprehensive information about the Gamify Journal projec
 
 ## 8. API Endpoints
 
-*   Refer to the Go backend handlers (e.g., `internal/user/user_handler.go`) or API documentation (e.g., Swagger/OpenAPI if generated) for detailed API specifications.
+*   Refer to the Go backend handlers (e.g., `backend/internal/user/user_handler.go`) or API documentation (e.g., Swagger/OpenAPI if generated) for detailed API specifications.
 *   Initial endpoints (as per Go backend details):
     *   `GET /health`: Health check.
     *   `POST /api/v1/users/register`: Register a new user.
