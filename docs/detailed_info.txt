@@ -146,6 +146,32 @@ This document provides comprehensive information about the Gamify Journal projec
     *   `POST /api/v1/auth/login`: Login an existing user.
     *   `GET /api/v1/users/{userID}`: Get user details by ID.
 
+## 8.1. Character Module (New Feature - In Progress)
+
+The Character module is being implemented to allow users to create and manage RPG-style characters that level up based on their journaling activity.
+
+*   **Purpose**: Enhance user engagement by gamifying the journaling experience with character progression.
+*   **Core Components**:
+    *   `backend/internal/models/character.go`: Defines the `Character` GORM model. Includes fields like `ID`, `UserID` (linking to `models.User`), `Name`, `Class` (enum: `Warrior`, `Mage`, `Rogue`), `Level`, `ExperiencePoints`. Also includes a `BeforeCreate` hook to generate UUIDs.
+    *   `backend/internal/character/`: Directory containing the character module's logic.
+        *   `backend/internal/character/character_service.go`: Contains the `Service` struct responsible for character business logic (creating characters, granting XP, leveling up). It defines an `ICharacterStore` interface for data persistence and operates using an object-oriented approach (methods on the `Service` struct). Includes input DTOs like `CreateCharacterInput` and basic validation.
+        *   `backend/internal/character/character_store.go`: Implements the `ICharacterStore` interface. Contains the `Store` struct that uses GORM to interact with the `characters` database table (CRUD operations).
+*   **Key Logic**:
+    *   Character creation with a name and class.
+    *   XP granting mechanism (e.g., triggered by writing journal entries - integration pending).
+    *   Automatic leveling up based on XP thresholds.
+*   **Next Steps (Backend)**:
+    *   Create `backend/internal/character/character_handler.go` to expose character functionalities via API endpoints (e.g., POST /api/v1/characters, GET /api/v1/characters/user/{userID}).
+    *   Update `backend/cmd/server/main.go` to initialize and wire up the character service, store, and handler.
+    *   Update `backend/internal/platform/database/database.go` to include `models.Character` in GORM's `AutoMigrate`.
+    *   Write unit tests for the character service.
+    *   Integrate XP granting with journaling actions.
+*   **API Endpoints (Planned)**:
+    *   `POST /api/v1/characters`: Create a new character for the authenticated user.
+    *   `GET /api/v1/characters/user/{userID}`: Get character details for a specific user.
+    *   `GET /api/v1/characters/me`: Get the authenticated user's character (alternative to by userID).
+    *   `POST /api/v1/characters/{characterID}/grant-xp`: (Potentially an internal or admin endpoint, or triggered by other actions) Grant XP to a character.
+
 ## 9. Deployment
 
 *   **Frontend (Next.js)**: [e.g., Vercel, Netlify, AWS Amplify, Docker container]

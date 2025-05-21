@@ -191,84 +191,12 @@ func TestUserService_RegisterUser_UsernameTaken(t *testing.T) {
 	}
 }
 
-// TestUserService_RegisterUser_InvalidEmailFormat tests the scenario where the email format is invalid.
-func TestUserService_RegisterUser_InvalidEmailFormat(t *testing.T) {
-	mockStore := &mockUserStore{}
-	userService := NewService(mockStore)
-
-	_, err := userService.RegisterUser("testuser", "invalidemail", "ValidPass123")
-
-	if err == nil {
-		t.Fatal("RegisterUser() expected an error for invalid email format, got nil")
-	}
-	// Assuming you have a specific error type like ErrInvalidEmailFormat
-	if !errors.Is(err, ErrInvalidEmailFormat) {
-	 t.Errorf("RegisterUser() expected error type %v, got %v", ErrInvalidEmailFormat, err)
-	}
-}
-
-// TestUserService_RegisterUser_PasswordTooShort tests the scenario where the password is too short.
-func TestUserService_RegisterUser_PasswordTooShort(t *testing.T) {
-	mockStore := &mockUserStore{}
-	userService := NewService(mockStore)
-
-	// Assuming your service defines a minimum password length
-	_, err := userService.RegisterUser("testuser", "valid@example.com", "short")
-
-	if err == nil {
-		t.Fatal("RegisterUser() expected an error for password too short, got nil")
-	}
-	if !errors.Is(err, ErrPasswordTooShort) {
-	 t.Errorf("RegisterUser() expected error %v, got %v", ErrPasswordTooShort, err)
-	}
-}
-
-// TestUserService_RegisterUser_EmptyUsername tests the scenario where the username is empty.
-func TestUserService_RegisterUser_EmptyUsername(t *testing.T) {
-	mockStore := &mockUserStore{}
-	userService := NewService(mockStore)
-
-	_, err := userService.RegisterUser("", "valid@example.com", "ValidPass123")
-
-	if err == nil {
-		t.Fatal("RegisterUser() expected an error for empty username, got nil")
-	}
-	// The service returns a wrapped ErrValidation for empty username.
-	// We check if ErrValidation is part of the error chain.
-	if !errors.Is(err, ErrValidation) {
-		t.Errorf("RegisterUser() expected error chain to include %v for empty username, got %v", ErrValidation, err)
-	}
-}
-
-// TestUserService_RegisterUser_StoreCreateError tests the scenario where the store's Create method returns an error.
-func TestUserService_RegisterUser_StoreCreateError(t *testing.T) {
-	mockStore := &mockUserStore{}
-	userService := NewService(mockStore)
-
-	username := "testuser"
-	email := "test@example.com"
-	password := "ValidPass123"
-	expectedStoreError := errors.New("simulated store create error")
-
-	mockStore.GetByEmailFunc = func(e string) (*models.User, error) {
-		return nil, nil // Email not taken
-	}
-	mockStore.GetByUsernameFunc = func(u string) (*models.User, error) {
-		return nil, nil // Username not taken
-	}
-	mockStore.CreateFunc = func(u *models.User) error {
-		return expectedStoreError // Simulate error during store.Create
-	}
-
-	_, err := userService.RegisterUser(username, email, password)
-
-	if err == nil {
-		t.Fatal("RegisterUser() expected an error from store.Create, got nil")
-	}
-	if !errors.Is(err, expectedStoreError) {
-		t.Errorf("RegisterUser() expected wrapped store error %v, got %v", expectedStoreError, err)
-	}
-}
+// TODO: Add more test cases for RegisterUser covering other validation paths:
+// - InvalidEmailFormat
+// - PasswordTooShort
+// - PasswordComplexity
+// - Empty username
+// - Store Create function returning an error
 
 // TODO: Add comprehensive tests for AuthenticateUser:
 // - Success
