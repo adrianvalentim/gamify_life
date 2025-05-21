@@ -112,7 +112,6 @@ go test ./internal/user/...
    ```bash
    pnpm dev
    ```
-   O frontend estará disponível em `http://localhost:3000` (ou outra porta, se configurado).
 
 ### Backend (Go)
 
@@ -122,7 +121,6 @@ Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre 
 2. Configure a variável de ambiente `DB_DSN`.
 3. Execute `go mod tidy` para instalar/verificar dependências.
 4. Execute o servidor: `go run cmd/server/main.go`.
-   O backend estará disponível em `http://localhost:8080` (ou outra porta, se configurado).
 
 ## Estrutura do Projeto
 

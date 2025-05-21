@@ -54,6 +54,7 @@ func MigrateAll() error {
 		&models.Achievement{},
 		&models.UserProgress{},
 		&models.Quest{}, // Task struct is embedded in Quest for JSONB, so not migrated separately as a table
+		&models.Character{}, // Added Character model
 	)
 
 	if migrationErr != nil {
