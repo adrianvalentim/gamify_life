@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { ChevronUp, Shield, Sword, ChevronRight, ChevronLeft } from "lucide-react"
@@ -17,6 +18,7 @@ interface CharacterDisplayProps {
 export function CharacterDisplay({ level, xp, nextLevelXp, showQuestInfo, onToggleQuestInfo }: CharacterDisplayProps) {
   const [characterClass, setCharacterClass] = useState("warrior")
   const progress = (xp / nextLevelXp) * 100
+  const router = useRouter()
 
   // Character classes with their respective images
   const characterClasses = {
@@ -25,12 +27,17 @@ export function CharacterDisplay({ level, xp, nextLevelXp, showQuestInfo, onTogg
     ranger: "/placeholder.svg?height=100&width=100",
   }
 
+  const handleCharacterClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    router.push('/character')
+  }
+
   return (
     <div className="flex items-center gap-3 bg-background/80 backdrop-blur-sm border rounded-lg p-2 shadow-md">
       <Button
         variant="outline"
         className="rounded-full h-14 w-14 p-0 relative border-amber-500 hover:border-amber-600 flex-shrink-0"
-        onClick={onToggleQuestInfo}
+        onClick={handleCharacterClick}
       >
         <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
           {level}
@@ -67,7 +74,10 @@ export function CharacterDisplay({ level, xp, nextLevelXp, showQuestInfo, onTogg
             <Shield className="h-3 w-3 text-blue-500" />
             <span>{8 + Math.floor(level / 3)}</span>
           </div>
-          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full" onClick={onToggleQuestInfo}>
+          <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full" onClick={(e) => {
+            e.stopPropagation()
+            onToggleQuestInfo()
+          }}>
             {showQuestInfo ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
           </Button>
         </div>
