@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/adrianvalentim/gamify_journal/internal/ai"                 // Added AI package
 	"github.com/adrianvalentim/gamify_journal/internal/character"         // Added character package
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
@@ -54,6 +55,10 @@ func main() {
 	characterService := character.NewService(characterStore) // Pass store to service
 	characterHandler := character.NewHandler(characterService) // Pass service to handler
 
+	// --- AI Module Initialization --- //
+	aiService := ai.NewAIService()
+	aiHandler := ai.NewAIHandler(aiService)
+
 	// API v1 Routes
 	r.Route("/api/v1", func(r chi.Router) {
 		// Mount user-specific routes
@@ -64,6 +69,11 @@ func main() {
 
 		// Mount character routes
 		characterHandler.RegisterRoutes(r) // This will mount under /api/v1/characters
+
+		// Mount AI routes
+		r.Route("/ai", func(r chi.Router) {
+			aiHandler.RegisterRoutes(r) // This will mount under /api/v1/ai
+		})
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			_, _ = w.Write([]byte("Welcome to Gamify Journal API v1"))

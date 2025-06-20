@@ -135,5 +135,4 @@ Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre 
 - `README.md`: Este arquivo.
 - `docs/detailed_info.txt`: Informações detalhadas do projeto (para desenvolvedores).
 
-Consulte a seção "Backend (Go)" para uma descrição mais detalhada da estrutura interna do backend.
-
+Esse projeto foi feito com a ajude de Inteligência Artificial.

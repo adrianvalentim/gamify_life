@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState, useCallback, useEffect } from "react"
 import { useEditor, EditorContent } from "@tiptap/react"
+import { Extension } from "@tiptap/core"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Heading from "@tiptap/extension-heading"
@@ -15,6 +16,47 @@ import { QuestInfoPanel } from "@/components/quest-info-panel"
 import { cn } from "@/lib/utils"
 import { useDocumentStructure } from "@/hooks/use-document-structure"
 import { useLanguage } from "@/hooks/use-language"
+
+// Define the structure of the AI response
+interface AIResponse {
+  response: string;
+}
+
+// Custom Tiptap extension to handle the Enter key press
+const EnterKeyHandler = Extension.create({
+  name: 'enterKeyHandler',
+
+  addOptions() {
+    return {
+      onEnter: () => {},
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      'Enter': () => {
+        console.log("Enter key pressed, handler fired!");
+
+        const { state } = this.editor
+        const { selection } = state
+        const { $from } = selection
+        
+        // Get the node (paragraph) the cursor is currently in
+        const currentNode = $from.node($from.depth)
+        
+        console.log("Current node content:", currentNode.textContent);
+
+        // If the node has text, trigger the onEnter callback
+        if (currentNode.textContent) {
+          this.options.onEnter(currentNode.textContent)
+        }
+        
+        // Return false to let the default Enter key behavior run (i.e., create a new line)
+        return false
+      },
+    }
+  },
+})
 
 interface DocumentEditorProps {
   documentId?: string
@@ -31,6 +73,45 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [documentTitle, setDocumentTitle] = useState("")
   // State to track if content has been loaded for the current ID
   const [contentLoaded, setContentLoaded] = useState(false); 
+
+  // Function to send paragraph to the AI service, wrapped in useCallback
+  const sendParagraphToAI = useCallback(async (paragraph: string) => {
+    if (!paragraph.trim()) {
+      console.log("Skipping empty paragraph.");
+      return;
+    }
+
+    console.log("Sending to AI:", paragraph);
+    try {
+      const response = await fetch("http://localhost:8000/agent/update_character", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paragraph: paragraph }),
+      });
+
+      if (!response.ok) {
+        // Try to get a more detailed error from the response body
+        let errorDetail = `AI service returned an error: ${response.status} ${response.statusText}`;
+        try {
+          const errorJson = await response.json();
+          if (errorJson.detail) {
+            errorDetail = `AI service error: ${errorJson.detail}`;
+          }
+        } catch (jsonError) {
+          // The body wasn't JSON or something went wrong, stick to the status text
+        }
+        throw new Error(errorDetail);
+      }
+
+      const data: AIResponse = await response.json();
+      console.log("AI Response:", data.response);
+      // Here you could update the UI, grant XP, etc. based on the response
+    } catch (error) {
+      console.error("Failed to send paragraph to AI:", error);
+    }
+  }, []); // Empty dependency array as this function doesn't depend on component state
 
   const editor = useEditor({
     extensions: [
@@ -49,25 +130,19 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
+      // Add our custom extension to handle the Enter key
+      EnterKeyHandler.configure({
+        onEnter: sendParagraphToAI,
+      }),
     ],
     // Start with empty content, will be set by useEffect
-    content: '', 
-    onUpdate: ({ editor }) => {
-      // Count words and add XP
-      const text = editor.getText()
-      const wordCount = text.split(/\s+/).filter(Boolean).length
-
-      // Add XP for new words (this is a simple implementation)
-      if (wordCount > 0) {
-        addXp(1)
-      }
-    },
+    content: '',
     editorProps: {
       attributes: {
         class: "outline-none prose prose-lg max-w-none",
       },
     },
-  }, [translations])
+  }, [translations, sendParagraphToAI]) // Add sendParagraphToAI to dependency array
 
   // Effect to load document title and content when documentId changes
   useEffect(() => {

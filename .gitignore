@@ -59,3 +59,7 @@ logs/
 # pip-log.txt
 # *.sqlite3
 # *.db3
+
+# Python
+ai_service/venv/
+ai_service/.env

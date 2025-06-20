@@ -1,4 +1,4 @@
+google-generativeai
+python-dotenv
 fastapi
 uvicorn[standard]
-python-dotenv
-google-generativeai # For Gemini API 
