@@ -1,7 +1,7 @@
 import { DocumentEditor } from "@/components/document-editor"
 import { Sidebar } from "@/components/sidebar"
 
-export default function DocumentPage({ params }: { params: { documentId: string } }) {
+export default async function DocumentPage({ params }: { params: { documentId: string } }) {
   return (
     <div className="flex h-screen bg-background">
       <Sidebar activeDocumentId={params.documentId} />
