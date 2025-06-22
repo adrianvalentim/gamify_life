@@ -1,14 +1,14 @@
 package character
 
 import (
-	"errors" // Standard errors package, can be replaced with a custom one
-	"gamelife/internal/models"
+	"github.com/adrianvalentim/gamify_journal/internal/models"
 
 	"github.com/google/uuid"
 )
 
 // ICharacterStore defines the interface for character data storage.
-// This will be implemented by the character_store.go file.	ype ICharacterStore interface {
+// This will be implemented by the character_store.go file.
+type ICharacterStore interface {
 	CreateCharacter(character *models.Character) error
 	GetCharacterByUserID(userID uuid.UUID) (*models.Character, error)
 	UpdateCharacter(character *models.Character) error

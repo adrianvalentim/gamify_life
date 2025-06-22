@@ -1,13 +1,19 @@
 package journal
 
 import (
+	"errors"
+	"fmt"
+	"time"
+
 	"github.com/adrianvalentim/gamify_journal/internal/models"
+	"gorm.io/gorm"
 )
 
 // Service defines the interface for journal business logic.
 type Service interface {
 	GetJournalEntry(id string) (*models.JournalEntry, error)
 	UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error)
+	CreateJournalEntry(title, content string) (*models.JournalEntry, error)
 }
 
 type service struct {
@@ -41,7 +47,16 @@ func (s *service) GetJournalEntry(id string) (*models.JournalEntry, error) {
 func (s *service) UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error) {
 	entry, err := s.store.GetByID(id)
 	if err != nil {
-		return nil, err // Or handle as a creation case if desired
+		// If the entry does not exist, create it.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			newEntry := &models.JournalEntry{
+				ID:      id,
+				Title:   title,
+				Content: content,
+			}
+			return newEntry, s.store.Create(newEntry)
+		}
+		return nil, err
 	}
 
 	entry.Title = title
@@ -51,4 +66,18 @@ func (s *service) UpdateJournalEntry(id, title, content string) (*models.Journal
 		return nil, err
 	}
 	return entry, nil
+}
+
+func (s *service) CreateJournalEntry(title, content string) (*models.JournalEntry, error) {
+	newEntry := &models.JournalEntry{
+		ID:      fmt.Sprintf("doc-%d", time.Now().UnixNano()),
+		Title:   title,
+		Content: content,
+	}
+
+	if err := s.store.Create(newEntry); err != nil {
+		return nil, err
+	}
+
+	return newEntry, nil
 } 

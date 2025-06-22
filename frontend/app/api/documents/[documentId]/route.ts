@@ -27,9 +27,8 @@ const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
 
 export async function GET(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params: { documentId } }: { params: { documentId: string } }
 ) {
-  const { documentId } = params;
   try {
     const res = await fetch(`${GO_API_URL}/journal/${documentId}`);
     if (!res.ok) {
@@ -53,9 +52,8 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params: { documentId } }: { params: { documentId: string } }
 ) {
-  const { documentId } = params;
   try {
     const body = await request.json();
     const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {

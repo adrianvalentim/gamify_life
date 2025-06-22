@@ -1,33 +1,24 @@
-import { NextResponse } from "next/server";
-import { addDocumentToStore } from "@/lib/mock-db";
+import { NextResponse } from 'next/server';
+
+const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    // Validate input (add proper validation in real app)
-    const { title, folderId } = body;
-    
-    const newDocumentId = `doc-${Date.now()}`; 
-    const newDocument = { 
-      id: newDocumentId, 
-      name: title || "Untitled" 
-    };
+    const res = await fetch(`${GO_API_URL}/journal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-    // Add to our shared in-memory store
-    addDocumentToStore(newDocument, folderId === "root" ? undefined : folderId);
+    if (!res.ok) {
+      throw new Error(`Backend create failed with status: ${res.status}`);
+    }
     
-    return NextResponse.json(
-      { 
-        success: true, 
-        document: { ...newDocument, folderId } // Return folderId for consistency if needed
-      },
-      { status: 201 }
-    );
+    const data = await res.json();
+    return NextResponse.json(data);
   } catch (error) {
-    console.error("Error creating document:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to create document" },
-      { status: 500 }
-    );
+    console.error(`Failed to create document in Go backend:`, error);
+    return NextResponse.json({ error: 'Failed to create document' }, { status: 500 });
   }
 } 

@@ -13,7 +13,8 @@ import { useDebouncedCallback } from 'use-debounce';
 
 interface DocumentData {
   id: string;
-  name: string;
+  title: string;
+  content: string;
   folderId?: string;
 }
 
@@ -56,7 +57,7 @@ const EnterKeyHandler = Extension.create({
   },
 });
 
-export const useDocument = (documentId: string) => {
+export const useDocument = (documentId?: string) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,40 +67,22 @@ export const useDocument = (documentId: string) => {
 
   const createDocument = async (title?: string, folderId?: string): Promise<DocumentData | null> => {
     try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await fetch("/api/documents", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: title || "Untitled",
-          folderId,
-        }),
+      const response = await fetch('/api/documents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title || 'Untitled', folderId }),
       });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create document");
-      }
-      
-      // Refresh the page to show updated document list
-      router.refresh();
-      
-      return data.document;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      if (!response.ok) throw new Error('Failed to create document');
+      const newDoc = await response.json();
+      return newDoc;
+    } catch (error) {
+      console.error('Error creating document:', error);
       return null;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const navigateToDocument = (documentId: string) => {
-    router.push(`/docs/${documentId}`);
+  const navigateToDocument = (docId: string) => {
+    router.push(`/docs/${docId}`);
   };
 
   const sendParagraphToAI = useCallback(async (paragraph: string) => {
@@ -145,11 +128,13 @@ export const useDocument = (documentId: string) => {
       const titleNode = editor.state.doc.firstChild;
       const title = titleNode ? titleNode.textContent : translations.untitledPage;
       
-      const newDoc = { ...(document || { id: documentId }), title, content };
-      setDocument(newDoc as Document);
-      debouncedSave(newDoc as Document);
+      setDocument(prevDoc => {
+        const newDoc = { ...(prevDoc || { id: documentId! }), title, content };
+        debouncedSave(newDoc as Document);
+        return newDoc as Document;
+      });
     }
-  }, [translations, sendParagraphToAI]);
+  }, [translations, sendParagraphToAI, documentId]);
 
   const debouncedSave = useDebouncedCallback(async (docToSave: Document) => {
     if (!docToSave) return;
@@ -168,7 +153,7 @@ export const useDocument = (documentId: string) => {
   }, 2000);
 
   useEffect(() => {
-    if (!documentId || !editor) return;
+    if (!documentId) return;
 
     const fetchDocument = async () => {
       try {
@@ -176,23 +161,27 @@ export const useDocument = (documentId: string) => {
         if (!res.ok) throw new Error('Failed to fetch document');
         const data: Document = await res.json();
         setDocument(data);
-        if (editor.isEditable) {
-            editor.commands.setContent(data.content || `<h1>${data.title}</h1>`, false);
-        }
       } catch (error) {
         console.error(error);
         const title = translations.untitledPage;
         const content = `<h1>${title}</h1>`;
-        const newDoc = { id: documentId, title, content };
-        setDocument(newDoc);
-        if(editor.isEditable) {
-            editor.commands.setContent(content, false);
-        }
+        setDocument({ id: documentId, title, content });
       }
     };
-
+    
     fetchDocument();
-  }, [documentId, editor, translations]);
+  }, [documentId, translations]);
+
+  useEffect(() => {
+    if (!editor || !document || !editor.isEditable) {
+      return;
+    }
+    const isSame = editor.getHTML() === document.content;
+    if (isSame) {
+      return;
+    }
+    editor.commands.setContent(document.content, false);
+  }, [editor, document]);
 
   const handleTitleChange = (newTitle: string) => {
     if (document && editor) {

@@ -16,6 +16,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/journal", func(r chi.Router) {
+		r.Post("/", h.createJournalEntry)
 		r.Get("/{journalId}", h.getJournalEntry)
 		r.Put("/{journalId}", h.updateJournalEntry)
 	})
@@ -29,6 +30,27 @@ func (h *Handler) getJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	json.NewEncoder(w).Encode(entry)
+}
+
+func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content)
+	if err != nil {
+		http.Error(w, "failed to create entry", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(entry)
 }
 

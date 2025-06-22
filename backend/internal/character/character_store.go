@@ -2,7 +2,7 @@ package character
 
 import (
 	"errors" // Standard Go errors package
-	"gamelife/internal/models" // Adjust path as necessary
+	"github.com/adrianvalentim/gamify_journal/internal/models" // Adjust path as necessary
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"

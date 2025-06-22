@@ -7,6 +7,7 @@ import (
 
 	"github.com/adrianvalentim/gamify_journal/internal/ai"                 // Added AI package
 	"github.com/adrianvalentim/gamify_journal/internal/character"         // Added character package
+	"github.com/adrianvalentim/gamify_journal/internal/journal"              // Import the new journal package
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
 
@@ -55,6 +56,11 @@ func main() {
 	characterService := character.NewService(characterStore) // Pass store to service
 	characterHandler := character.NewHandler(characterService) // Pass service to handler
 
+	// --- Journal Module Initialization --- //
+	journalStore := journal.NewStore(dbInstance)
+	journalService := journal.NewService(journalStore)
+	journalHandler := journal.NewHandler(journalService)
+
 	// --- AI Module Initialization --- //
 	aiService := ai.NewAIService()
 	aiHandler := ai.NewAIHandler(aiService)
@@ -69,6 +75,9 @@ func main() {
 
 		// Mount character routes
 		characterHandler.RegisterRoutes(r) // This will mount under /api/v1/characters
+
+		// Mount journal routes
+		journalHandler.RegisterRoutes(r) // This will mount under /api/v1/journal
 
 		// Mount AI routes
 		r.Route("/ai", func(r chi.Router) {
