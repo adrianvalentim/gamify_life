@@ -42,7 +42,7 @@ logs/
 # .tox/
 
 # Remove previously specific entries, now handled by subdir .gitignores:
-# /node_modules
+/node_modules
 # /backend_python/venv/
 # /backend_go/vendor/
 # /.next/
