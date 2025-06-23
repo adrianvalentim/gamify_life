@@ -9,7 +9,8 @@ import (
 type Store interface {
 	GetByID(id string) (*models.JournalEntry, error)
 	Update(entry *models.JournalEntry) error
-    Create(entry *models.JournalEntry) error
+	Create(entry *models.JournalEntry) error
+	GetByUserID(userID string) ([]models.JournalEntry, error)
 }
 
 // gormStore is a GORM implementation of the Store interface.
@@ -38,5 +39,14 @@ func (s *gormStore) Update(entry *models.JournalEntry) error {
 
 // Create creates a new journal entry.
 func (s *gormStore) Create(entry *models.JournalEntry) error {
-    return s.db.Create(entry).Error
+	return s.db.Create(entry).Error
+}
+
+// GetByUserID retrieves all journal entries for a given user ID.
+func (s *gormStore) GetByUserID(userID string) ([]models.JournalEntry, error) {
+	var entries []models.JournalEntry
+	if err := s.db.Where("user_id = ?", userID).Find(&entries).Error; err != nil {
+		return nil, err
+	}
+	return entries, nil
 } 

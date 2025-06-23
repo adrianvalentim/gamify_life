@@ -19,6 +19,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.createJournalEntry)
 		r.Get("/{journalId}", h.getJournalEntry)
 		r.Put("/{journalId}", h.updateJournalEntry)
+		r.Get("/user/{userID}", h.getJournalEntriesByUserID)
 	})
 }
 
@@ -37,6 +38,7 @@ func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Title   string `json:"title"`
 		Content string `json:"content"`
+		UserID  string `json:"user_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -44,7 +46,7 @@ func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content)
+	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content, payload.UserID)
 	if err != nil {
 		http.Error(w, "failed to create entry", http.StatusInternalServerError)
 		return
@@ -73,4 +75,15 @@ func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(entry)
+}
+
+func (h *Handler) getJournalEntriesByUserID(w http.ResponseWriter, r *http.Request) {
+	userID := chi.URLParam(r, "userID")
+	entries, err := h.service.GetJournalEntriesByUserID(userID)
+	if err != nil {
+		http.Error(w, "failed to get entries for user", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(entries)
 } 

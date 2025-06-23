@@ -70,7 +70,7 @@ export const useDocument = (documentId?: string) => {
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title || 'Untitled', folderId }),
+        body: JSON.stringify({ title: title || 'Untitled', folderId, user_id: 'user-123' }),
       });
       if (!response.ok) throw new Error('Failed to create document');
       const newDoc = await response.json();
@@ -94,7 +94,7 @@ export const useDocument = (documentId?: string) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paragraph }),
       });
-
+      
       if (!response.ok) {
         const errorJson = await response.json();
         throw new Error(`AI service error: ${errorJson.detail || response.statusText}`);
@@ -104,7 +104,7 @@ export const useDocument = (documentId?: string) => {
       console.log("AI Response:", data.response);
     } catch (error) {
       console.error("Failed to send paragraph to AI:", error);
-    }
+      }
   }, []);
 
   const editor = useEditor({

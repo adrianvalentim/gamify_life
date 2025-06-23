@@ -1,11 +1,28 @@
 import { NextResponse } from "next/server";
-import { getDocumentStructure } from "@/lib/mock-db";
 
-// This is a mock implementation. In a real app, this would fetch from your database
+const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
+
 export async function GET() {
   try {
-    // Get the current structure from the shared store
-    const structure = getDocumentStructure();
+    const userID = "user-123"; // Hardcoded for now
+    const res = await fetch(`${GO_API_URL}/journal/user/${userID}`);
+    
+    if (!res.ok) {
+      throw new Error(`Backend fetch failed with status: ${res.status}`);
+    }
+    
+    const documents = await res.json();
+    
+    // The frontend expects a specific structure. We'll adapt the response.
+    // For now, we'll place all documents at the root.
+    const structure = {
+      rootDocuments: documents.map((doc: any) => ({
+        id: doc.id,
+        name: doc.title,
+      })),
+      folders: [], // Folders are not implemented yet
+    };
+
     return NextResponse.json(structure);
   } catch (error) {
     console.error("Error fetching document structure:", error);

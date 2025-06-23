@@ -1,5 +1,17 @@
 {
+	"name": "gamelife-monorepo",
+	"version": "1.0.0",
+	"private": true,
+	"scripts": {
+	  "start:all": "concurrently \"npm:start:frontend\" \"npm:start:backend\" \"npm:start:ai\"",
+	  "start:frontend": "pnpm --filter gamify_journal dev",
+	  "start:backend": "cd backend && DB_DSN='host=localhost user=youruser password=yourpassword dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC' go run ./cmd/server/main.go",
+	  "start:ai": "source ai_service/venv/bin/activate && uvicorn main:app --reload --port 8001 --app-dir ai_service"
+	},
 	"dependencies": {
-		"use-debounce": "^10.0.5"
+	  "use-debounce": "^10.0.5"
+	},
+	"devDependencies": {
+	  "concurrently": "^9.2.0"
 	}
-}
+  }

@@ -13,7 +13,8 @@ import (
 type Service interface {
 	GetJournalEntry(id string) (*models.JournalEntry, error)
 	UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error)
-	CreateJournalEntry(title, content string) (*models.JournalEntry, error)
+	CreateJournalEntry(title, content, userID string) (*models.JournalEntry, error)
+	GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error)
 }
 
 type service struct {
@@ -68,11 +69,12 @@ func (s *service) UpdateJournalEntry(id, title, content string) (*models.Journal
 	return entry, nil
 }
 
-func (s *service) CreateJournalEntry(title, content string) (*models.JournalEntry, error) {
+func (s *service) CreateJournalEntry(title, content, userID string) (*models.JournalEntry, error) {
 	newEntry := &models.JournalEntry{
 		ID:      fmt.Sprintf("doc-%d", time.Now().UnixNano()),
 		Title:   title,
 		Content: content,
+		UserID:  userID,
 	}
 
 	if err := s.store.Create(newEntry); err != nil {
@@ -80,4 +82,8 @@ func (s *service) CreateJournalEntry(title, content string) (*models.JournalEntr
 	}
 
 	return newEntry, nil
+}
+
+func (s *service) GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error) {
+	return s.store.GetByUserID(userID)
 } 
