@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import {
   Search,
   Settings,
   Loader2,
+  FolderPlus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDocument } from "@/hooks/use-document"
@@ -47,6 +48,162 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+interface DocumentToRename {
+  id: string;
+  name: string;
+}
+
+interface FolderToRename {
+  id: string;
+  name: string;
+}
+
+interface DocumentItemProps {
+  doc: { id: string; name: string };
+  depth?: number;
+  activeDocumentId?: string;
+  handleDeleteDocument: (id: string) => void;
+  onRename: (doc: DocumentToRename) => void;
+}
+
+interface FolderItemProps {
+  folder: any;
+  depth?: number;
+  expandedFolders: Record<string, boolean>;
+  toggleFolder: (id: string) => void;
+  onRename: (folder: FolderToRename) => void;
+  onDelete: (id: string) => void;
+  activeDocumentId?: string;
+  handleDeleteDocument: (id: string) => void;
+  handleRenameDocument: (doc: DocumentToRename) => void;
+}
+
+const DocumentItem: React.FC<DocumentItemProps> = ({ doc, depth = 0, activeDocumentId, handleDeleteDocument, onRename }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: doc.id });
+  const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} >
+      <ContextMenu key={doc.id}>
+        <ContextMenuTrigger asChild>
+          <div {...listeners}>
+            <Link href={`/docs/${doc.id}`} passHref>
+              <div
+                className={cn(
+                  "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
+                  depth > 0 && "ml-3",
+                  activeDocumentId === doc.id && "bg-accent",
+                )}
+              >
+                <span className={cn("mr-2", depth === 0 && "ml-0", depth > 0 && "ml-5")}>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </span>
+                <span className="truncate">{doc.name}</span>
+              </div>
+            </Link>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onSelect={() => onRename(doc)}>Rename</ContextMenuItem>
+          <ContextMenuItem
+            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+            onSelect={() => handleDeleteDocument(doc.id)}
+          >
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    </div>
+  );
+};
+
+const FolderItem: React.FC<FolderItemProps> = ({ folder, depth = 0, expandedFolders, toggleFolder, onRename, onDelete, activeDocumentId, handleDeleteDocument, handleRenameDocument, ...props }) => {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: folder.id });
+  const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+  };
+  const isExpanded = expandedFolders[folder.id];
+
+  return (
+      <div ref={setNodeRef} style={style} {...attributes} className="space-y-1">
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <button
+                onClick={() => toggleFolder(folder.id)}
+                {...listeners}
+                className={cn(
+                    "flex items-center w-full rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
+                    depth > 0 && "ml-3"
+                )}
+            >
+                <span className="mr-1">
+                    {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                </span>
+                <span className="mr-2">
+                    {isExpanded ? <FolderOpen className="h-4 w-4 text-amber-500" /> : <FolderClosed className="h-4 w-4 text-amber-500" />}
+                </span>
+                <span className="truncate">{folder.name}</span>
+            </button>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onSelect={() => onRename(folder)}>Rename</ContextMenuItem>
+            <ContextMenuItem
+              className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+              onSelect={() => onDelete(folder.id)}
+            >
+              Delete
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+          {isExpanded && (
+              <div className="space-y-1 pl-2">
+                  {folder.documents?.map((doc: any) => (
+                    <DocumentItem 
+                      key={doc.id} 
+                      doc={doc} 
+                      depth={depth + 1} 
+                      activeDocumentId={activeDocumentId}
+                      handleDeleteDocument={handleDeleteDocument}
+                      onRename={handleRenameDocument} 
+                    />
+                  ))}
+                  {folder.subfolders?.map((subfolder: any) => (
+                    <FolderItem 
+                      key={subfolder.id} 
+                      folder={subfolder} 
+                      depth={depth + 1} 
+                      expandedFolders={expandedFolders} 
+                      toggleFolder={toggleFolder} 
+                      onRename={onRename} 
+                      onDelete={onDelete} 
+                      activeDocumentId={activeDocumentId}
+                      handleDeleteDocument={handleDeleteDocument}
+                      handleRenameDocument={handleRenameDocument}
+                    />
+                  ))}
+              </div>
+          )}
+      </div>
+  );
+};
 
 interface SidebarProps {
   activeDocumentId?: string
@@ -64,13 +221,26 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
   const { translations } = useLanguage()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [documentToRename, setDocumentToRename] = useState<DocumentToRename | null>(null)
+  const [renameInput, setRenameInput] = useState("")
+  const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState("")
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [folderToRename, setFolderToRename] = useState<FolderToRename | null>(null);
+  const [folderRenameInput, setFolderRenameInput] = useState("");
 
-  // Initialize expanded state based on fetched structure
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
   useEffect(() => {
     const initialExpanded: Record<string, boolean> = {};
     const setExpanded = (folders: any[]) => {
       folders.forEach(f => {
-        // Optionally expand top-level folders by default
         if (f.id === 'folder-1') initialExpanded[f.id] = true;
         if (f.subfolders) setExpanded(f.subfolders);
       });
@@ -89,188 +259,157 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   }
 
   const handleCreateDocument = async () => {
-    // Convert "root" value to undefined for the API
     const folderIdToUse = selectedFolderId === "root" ? undefined : selectedFolderId;
-    
     const document = await createDocument(newDocTitle || "Untitled", folderIdToUse);
-    
     if (document) {
       setIsNewDocDialogOpen(false);
       setNewDocTitle("");
       setSelectedFolderId("root");
-      
-      // Revalidate the structure from the server
       revalidateStructure();
-      
-      toast({
-        title: "Success",
-        description: "Document created successfully",
-      });
+      toast({ title: "Success", description: "Document created successfully" });
       navigateToDocument(document.id);
     } else {
-      toast({
-        title: "Error",
-        description: "Failed to create document",
-        variant: "destructive",
+      toast({ title: "Error", description: "Failed to create document", variant: "destructive" });
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    try {
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFolderName, user_id: 'user-123' }),
       });
+      if (!response.ok) throw new Error('Failed to create folder');
+      toast({ title: "Success", description: "Folder created successfully" });
+      setIsNewFolderDialogOpen(false);
+      setNewFolderName("");
+      revalidateStructure();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create folder", variant: "destructive" });
+    }
+  };
+
+  const handleRename = (doc: DocumentToRename) => {
+    setDocumentToRename(doc);
+    setRenameInput(doc.name);
+  };
+
+  const handleRenameFolder = (folder: FolderToRename) => {
+    setFolderToRename(folder);
+    setFolderRenameInput(folder.name);
+  };
+
+  const handleRenameDocument = async () => {
+    if (!documentToRename) return;
+    try {
+      const response = await fetch(`/api/documents/${documentToRename.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: renameInput }),
+      });
+      if (!response.ok) throw new Error('Failed to rename document');
+      toast({ title: "Success", description: "Document renamed successfully" });
+      setDocumentToRename(null);
+      setRenameInput("");
+      revalidateStructure();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to rename document", variant: "destructive" });
+    }
+  };
+
+  const handleUpdateFolder = async () => {
+    if (!folderToRename) return;
+    try {
+      const response = await fetch(`/api/folders/${folderToRename.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderRenameInput }),
+      });
+      if (!response.ok) throw new Error('Failed to rename folder');
+      toast({ title: "Success", description: "Folder renamed successfully" });
+      setFolderToRename(null);
+      setFolderRenameInput("");
+      revalidateStructure();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to rename folder", variant: "destructive" });
     }
   };
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete document');
-      }
-
-      toast({
-        title: "Success",
-        description: "Document deleted successfully",
-      });
-
+      const response = await fetch(`/api/documents/${documentId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete document');
+      toast({ title: "Success", description: "Document deleted successfully" });
       revalidateStructure();
-      
-      if(activeDocumentId === documentId) {
-          router.push('/docs');
-      }
-
+      if(activeDocumentId === documentId) router.push('/docs');
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete document",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete document", variant: "destructive" });
     }
   };
 
-  const renderFolder = (
-    folder: {
-      id: string
-      name: string
-      documents: { id: string; name: string }[]
-      subfolders?: any[]
-    },
-    depth = 0,
-  ) => {
-    const isExpanded = expandedFolders[folder.id]
+  const handleDeleteFolder = async (folderId: string) => {
+    try {
+      const response = await fetch(`/api/folders/${folderId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete folder');
+      toast({ title: "Success", description: "Folder deleted successfully" });
+      revalidateStructure();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete folder", variant: "destructive" });
+    }
+  };
 
-    return (
-      <div key={folder.id} className="space-y-1">
-        <button
-          onClick={() => toggleFolder(folder.id)}
-          className={cn(
-            "flex items-center w-full rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
-            depth > 0 && "ml-3",
-          )}
-        >
-          <span className="mr-1">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            )}
-          </span>
-          <span className="mr-2">
-            {isExpanded ? (
-              <FolderOpen className="h-4 w-4 text-amber-500" />
-            ) : (
-              <FolderClosed className="h-4 w-4 text-amber-500" />
-            )}
-          </span>
-          <span className="truncate">{folder.name}</span>
-        </button>
+  const handleDragEnd = async (event: any) => {
+    setActiveDragId(null);
+    const { active, over } = event;
 
-        {isExpanded && (
-          <div className="space-y-1">
-            {folder.documents?.map((doc) => renderDocumentItem(doc, depth + 1))}
-            {folder.subfolders?.map((subfolder) => renderFolder(subfolder, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
+    if (over && active.id !== over.id) {
+      const documentId = active.id;
+      const folderId = over.id.startsWith('folder-') ? over.id : null;
+      try {
+        const response = await fetch(`/api/documents/${documentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_id: folderId }),
+        });
+        if (!response.ok) throw new Error('Failed to move document');
+        toast({ title: "Success", description: "Document moved successfully" });
+        revalidateStructure();
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to move document", variant: "destructive" });
+      }
+    }
+  };
+
+  const flattenStructure = (folders: any[]): string[] => {
+    const items: string[] = [];
+    for (const folder of folders) {
+        items.push(folder.id);
+        if (folder.documents) {
+            items.push(...folder.documents.map((d: any) => d.id));
+        }
+        if (folder.subfolders) {
+            items.push(...flattenStructure(folder.subfolders));
+        }
+    }
+    return items;
   }
 
-  const renderDocumentItem = (
-    doc: { id: string; name: string },
-    depth = 0,
-  ) => {
-    return (
-      <ContextMenu key={doc.id}>
-        <ContextMenuTrigger asChild>
-          <Link href={`/docs/${doc.id}`} passHref>
-            <div
-              className={cn(
-                "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
-                depth > 0 && "ml-3",
-                activeDocumentId === doc.id && "bg-accent",
-              )}
-            >
-              <span className={cn("mr-2", depth === 0 && "ml-0", depth > 0 && "ml-5")}>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </span>
-              <span className="truncate">{doc.name}</span>
-            </div>
-          </Link>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
-          <ContextMenuItem>Rename</ContextMenuItem>
-          <ContextMenuItem>Move</ContextMenuItem>
-          <ContextMenuItem
-            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-            onSelect={() => handleDeleteDocument(doc.id)}
-          >
-            Delete
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    )
-  }
+  const allItemIds = useMemo(() => {
+    const docIds = structure.rootDocuments.map(d => d.id);
+    const folderItems = flattenStructure(structure.folders);
+    return [...docIds, ...folderItems];
+  }, [structure]);
 
-  // Flatten folders for the dropdown
-  const getAllFolders = () => {
+  const allFolders = useMemo(() => {
     const result: { id: string; name: string; depth: number }[] = []
-    
     const addFolder = (folder: any, depth = 0) => {
       result.push({ id: folder.id, name: folder.name, depth })
       folder.subfolders?.forEach((subfolder: any) => addFolder(subfolder, depth + 1))
     }
-    
     structure.folders.forEach(folder => addFolder(folder))
     return result
-  }
-
-  const allFolders = getAllFolders()
-
-  if (isLoadingStructure) {
-    return (
-      <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
-        {/* Keep header and footer visible during load */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md">
-            <Home className="h-5 w-5" />
-            <span className="font-semibold text-lg">Gamify Journal</span>
-          </div>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-        <div className="p-4 border-t mt-auto">
-          <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" className="w-full justify-start" disabled>
-              <Plus className="mr-2 h-4 w-4" />
-              {translations.newPage}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled>
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, [structure.folders]);
 
   return (
     <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
@@ -293,68 +432,86 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         </div>
       </div>
       <ScrollArea className="flex-1 px-2">
-        {/* Root documents */}
-        {structure.rootDocuments.length > 0 && (
-          <div className="space-y-1 py-2">
-            {structure.rootDocuments.map((doc) => renderDocumentItem(doc))}
-          </div>
-        )}
-        
-        {/* Folders */}
-        {structure.folders && structure.folders.length > 0 && (
-          <div className="space-y-1 py-2">
-            {structure.folders.map((folder) => renderFolder(folder))}
-          </div>
-        )}
-        {/* Display message if no documents or folders */}
-        {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            {translations.noPages}
-          </div>
-        )}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(e) => setActiveDragId(e.active.id as string)}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
+            {isLoadingStructure ? (
+                <div className="flex items-center justify-center h-full p-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : (
+              <>
+                {structure.rootDocuments.map(doc => (
+                  <DocumentItem 
+                    key={doc.id}
+                    doc={doc}
+                    activeDocumentId={activeDocumentId}
+                    handleDeleteDocument={handleDeleteDocument}
+                    onRename={handleRename}
+                  />
+                ))}
+                {structure.folders.map(folder => (
+                  <FolderItem
+                    key={folder.id}
+                    folder={folder}
+                    activeDocumentId={activeDocumentId}
+                    handleDeleteDocument={handleDeleteDocument}
+                    onRename={handleRenameFolder}
+                    onDelete={handleDeleteFolder}
+                    expandedFolders={expandedFolders}
+                    toggleFolder={toggleFolder}
+                    handleRenameDocument={handleRename}
+                  />
+                ))}
+                {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    {translations.noPages}
+                  </div>
+                )}
+              </>
+            )}
+          </SortableContext>
+          <DragOverlay>
+            {activeDragId ? (
+              <div className="bg-muted p-2 rounded-md shadow-lg">
+                {structure.rootDocuments.find(d => d.id === activeDragId)?.name || allFolders.find(f => f.id === activeDragId)?.name}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </ScrollArea>
       <div className="p-4 border-t mt-auto">
         <div className="flex items-center justify-between">
           <Dialog open={isNewDocDialogOpen} onOpenChange={setIsNewDocDialogOpen}>
             <DialogTrigger asChild>
-          <Button variant="ghost" size="sm" className="w-full justify-start">
-            <Plus className="mr-2 h-4 w-4" />
-            {translations.newPage}
-          </Button>
+              <Button variant="ghost" size="sm" className="w-full justify-start">
+                <Plus className="mr-2 h-4 w-4" />
+                {translations.newPage}
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{translations.createNewPage}</DialogTitle>
-                <DialogDescription>
-                  {translations.createDescription}
-                </DialogDescription>
+                <DialogDescription>{translations.createDescription}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="title" className="text-right">
-                    {translations.title}
-                  </Label>
-                  <Input
-                    id="title"
-                    placeholder="Untitled"
-                    className="col-span-3"
-                    value={newDocTitle}
-                    onChange={(e) => setNewDocTitle(e.target.value)}
-                  />
+                  <Label htmlFor="title" className="text-right">{translations.title}</Label>
+                  <Input id="title" placeholder="Untitled" className="col-span-3" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="folder" className="text-right">
-                    {translations.folder}
-                  </Label>
+                  <Label htmlFor="folder" className="text-right">{translations.folder}</Label>
                   <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder={translations.selectFolder} />
-                    </SelectTrigger>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder={translations.selectFolder} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="root">Root</SelectItem>
                       {allFolders.map((folder) => (
                         <SelectItem key={folder.id} value={folder.id}>
-                          {folder.depth > 0 ? "┗ ".repeat(folder.depth) : ""}{folder.name}
+                          {'┗ '.repeat(folder.depth)}{folder.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -362,33 +519,71 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsNewDocDialogOpen(false)}>
-                  {translations.cancel}
-                </Button>
+                <Button variant="outline" onClick={() => setIsNewDocDialogOpen(false)}>{translations.cancel}</Button>
                 <Button onClick={handleCreateDocument} disabled={isCreating}>
-                  {isCreating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {translations.creating}
-                    </>
-                  ) : (
-                    translations.create
-                  )}
+                  {isCreating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{translations.creating}</> : translations.create}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => setIsSettingsOpen(true)}
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <SettingsPanel open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsNewFolderDialogOpen(true)}><FolderPlus className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
         </div>
+        <SettingsPanel open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
       </div>
+
+      {/* Rename Document Dialog */}
+      <Dialog open={!!documentToRename} onOpenChange={(v) => !v && setDocumentToRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Document</DialogTitle>
+            <DialogDescription>Enter a new name for the document &quot;{documentToRename?.name}&quot;.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rename-input">New name</Label>
+            <Input id="rename-input" value={renameInput} onChange={(e) => setRenameInput(e.target.value)} className="mt-2" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDocumentToRename(null)}>Cancel</Button>
+            <Button onClick={handleRenameDocument}>Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* New Folder Dialog */}
+      <Dialog open={isNewFolderDialogOpen} onOpenChange={setIsNewFolderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription>Enter a name for your new folder.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="folder-name-input">Folder name</Label>
+            <Input id="folder-name-input" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} className="mt-2" placeholder="My Awesome Folder" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewFolderDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateFolder}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rename Folder Dialog */}
+      <Dialog open={!!folderToRename} onOpenChange={(v) => !v && setFolderToRename(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+            <DialogDescription>Enter a new name for the folder &quot;{folderToRename?.name}&quot;.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rename-folder-input">New name</Label>
+            <Input id="rename-folder-input" value={folderRenameInput} onChange={(e) => setFolderRenameInput(e.target.value)} className="mt-2" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderToRename(null)}>Cancel</Button>
+            <Button onClick={handleUpdateFolder}>Rename</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -12,8 +12,8 @@ import (
 // Service defines the interface for journal business logic.
 type Service interface {
 	GetJournalEntry(id string) (*models.JournalEntry, error)
-	UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error)
-	CreateJournalEntry(title, content, userID string) (*models.JournalEntry, error)
+	UpdateJournalEntry(id, title, content string, folderID *string) (*models.JournalEntry, error)
+	CreateJournalEntry(title, content, userID string, folderID *string) (*models.JournalEntry, error)
 	GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error)
 	DeleteJournalEntry(id string) error
 }
@@ -46,23 +46,32 @@ func (s *service) GetJournalEntry(id string) (*models.JournalEntry, error) {
 }
 
 // UpdateJournalEntry updates the title and content of a journal entry.
-func (s *service) UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error) {
+func (s *service) UpdateJournalEntry(id, title, content string, folderID *string) (*models.JournalEntry, error) {
 	entry, err := s.store.GetByID(id)
 	if err != nil {
 		// If the entry does not exist, create it.
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			newEntry := &models.JournalEntry{
-				ID:      id,
-				Title:   title,
-				Content: content,
+				ID:       id,
+				Title:    title,
+				Content:  content,
+				FolderID: folderID,
 			}
 			return newEntry, s.store.Create(newEntry)
 		}
 		return nil, err
 	}
 
-	entry.Title = title
-	entry.Content = content
+	// Only update fields that are not empty
+	if title != "" {
+		entry.Title = title
+	}
+	if content != "" {
+		entry.Content = content
+	}
+	if folderID != nil {
+		entry.FolderID = folderID
+	}
 
 	if err := s.store.Update(entry); err != nil {
 		return nil, err
@@ -70,12 +79,13 @@ func (s *service) UpdateJournalEntry(id, title, content string) (*models.Journal
 	return entry, nil
 }
 
-func (s *service) CreateJournalEntry(title, content, userID string) (*models.JournalEntry, error) {
+func (s *service) CreateJournalEntry(title, content, userID string, folderID *string) (*models.JournalEntry, error) {
 	newEntry := &models.JournalEntry{
-		ID:      fmt.Sprintf("doc-%d", time.Now().UnixNano()),
-		Title:   title,
-		Content: content,
-		UserID:  userID,
+		ID:       fmt.Sprintf("doc-%d", time.Now().UnixNano()),
+		Title:    title,
+		Content:  content,
+		UserID:   userID,
+		FolderID: folderID,
 	}
 
 	if err := s.store.Create(newEntry); err != nil {

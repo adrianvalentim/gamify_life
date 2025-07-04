@@ -69,9 +69,9 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { documentId: string } }
+  { params }: { params: Promise<{ documentId: string }> }
 ) {
-  const { documentId } = params;
+  const { documentId } = await params;
   try {
     const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {
       method: "DELETE",

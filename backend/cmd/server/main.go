@@ -5,91 +5,74 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/adrianvalentim/gamify_journal/internal/ai"                 // Added AI package
-	"github.com/adrianvalentim/gamify_journal/internal/character"         // Added character package
-	"github.com/adrianvalentim/gamify_journal/internal/journal"              // Import the new journal package
+	"github.com/adrianvalentim/gamify_journal/internal/character"
+	"github.com/adrianvalentim/gamify_journal/internal/folder"
+	"github.com/adrianvalentim/gamify_journal/internal/journal"
+	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
-	// Initialize Database Connection
 	if err := database.Connect(); err != nil {
 		log.Fatalf("Fatal Error: Could not connect to the database: %v", err)
 	}
-	dbInstance := database.GetDB() // Get the DB instance after connection
+	dbInstance := database.GetDB()
 
-	// Run Database Migrations
 	if err := database.MigrateAll(); err != nil {
 		log.Fatalf("Fatal Error: Could not run database migrations: %v", err)
 	}
 
-	// Initialize Chi Router
 	r := chi.NewRouter()
 
-	// Basic Middleware Setup
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.StripSlashes)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type"},
+	}))
 
-	// Health Check Route
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status": "healthy", "service": "gamify_journal_api"}`))
 	})
 
-	// --- User Routes --- //
-	userStore := user.NewGormStore() // Assuming this takes dbInstance if needed, or uses global DB
-	// If NewGormStore needs dbInstance, it should be: user.NewGormStore(dbInstance)
-	// For now, assuming it correctly accesses the global DB from database package
-	userService := user.NewService(userStore)
-	userHandler := user.NewHandler(userService)
-
-	// --- Character Module Initialization --- //
-	characterStore := character.NewStore(dbInstance)         // Pass DB instance
-	characterService := character.NewService(characterStore) // Pass store to service
-	characterHandler := character.NewHandler(characterService) // Pass service to handler
-
-	// --- Journal Module Initialization --- //
+	userStore := user.NewGormStore()
 	journalStore := journal.NewStore(dbInstance)
+	characterStore := character.NewStore(dbInstance)
+	folderStore := folder.NewStore(dbInstance)
+
+	userService := user.NewService(userStore)
 	journalService := journal.NewService(journalStore)
+	characterService := character.NewService(characterStore)
+	folderService := folder.NewService(folderStore)
+
+	userHandler := user.NewHandler(userService)
 	journalHandler := journal.NewHandler(journalService)
+	characterHandler := character.NewHandler(characterService)
+	folderHandler := folder.NewHandler(folderService)
 
-	// --- AI Module Initialization --- //
-	aiService := ai.NewAIService()
-	aiHandler := ai.NewAIHandler(aiService)
+	// Seed data
+	seedData(userStore)
 
-	// API v1 Routes
 	r.Route("/api/v1", func(r chi.Router) {
-		// Mount user-specific routes
 		r.Mount("/users", userRouter(userHandler))
-
-		// Mount authentication routes
 		r.Mount("/auth", authRouter(userHandler))
-
-		// Mount character routes
-		characterHandler.RegisterRoutes(r) // This will mount under /api/v1/characters
-
-		// Mount journal routes
-		journalHandler.RegisterRoutes(r) // This will mount under /api/v1/journal
-
-		// Mount AI routes
-		r.Route("/ai", func(r chi.Router) {
-			aiHandler.RegisterRoutes(r) // This will mount under /api/v1/ai
-		})
-
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			_, _ = w.Write([]byte("Welcome to Gamify Journal API v1"))
-		})
+		journalHandler.RegisterRoutes(r)
+		characterHandler.RegisterRoutes(r)
+		folderHandler.RegisterRoutes(r)
 	})
 
-	// Determine port for HTTP service.
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -103,7 +86,37 @@ func main() {
 	}
 }
 
-// userRouter defines routes related to user management
+func seedData(userStore user.Store) {
+	const seedUserID = "user-123"
+	existingUser, err := userStore.GetByID(seedUserID)
+	if err != nil {
+		log.Fatalf("Error checking for seed user: %v", err)
+		return
+	}
+	if existingUser != nil {
+		log.Printf("User %s already exists. Skipping seed.", seedUserID)
+		return
+	}
+
+	log.Println("Seeding initial user...")
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("Could not hash password for seed user: %v", err)
+	}
+
+	seedUser := &models.User{
+		ID:             seedUserID,
+		Username:       "testuser",
+		Email:          "test@example.com",
+		HashedPassword: string(hashedPassword),
+	}
+
+	if err := userStore.Create(seedUser); err != nil {
+		log.Fatalf("Could not create seed user: %v", err)
+	}
+	log.Println("Successfully seeded user user-123.")
+}
+
 func userRouter(h *user.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/register", h.HandleRegisterUser)
@@ -111,7 +124,6 @@ func userRouter(h *user.Handler) http.Handler {
 	return r
 }
 
-// authRouter defines routes related to authentication
 func authRouter(h *user.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/login", h.HandleLoginUser)

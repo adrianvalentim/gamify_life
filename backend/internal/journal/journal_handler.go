@@ -37,9 +37,10 @@ func (h *Handler) getJournalEntry(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
-		UserID  string `json:"user_id"`
+		Title    string  `json:"title"`
+		Content  string  `json:"content"`
+		UserID   string  `json:"user_id"`
+		FolderID *string `json:"folder_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -47,7 +48,7 @@ func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content, payload.UserID)
+	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content, payload.UserID, payload.FolderID)
 	if err != nil {
 		http.Error(w, "failed to create entry", http.StatusInternalServerError)
 		return
@@ -60,8 +61,9 @@ func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 	journalId := chi.URLParam(r, "journalId")
 	var payload struct {
-		Title   string `json:"title"`
-		Content string `json:"content"`
+		Title    string  `json:"title"`
+		Content  string  `json:"content"`
+		FolderID *string `json:"folder_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -69,7 +71,7 @@ func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.UpdateJournalEntry(journalId, payload.Title, payload.Content)
+	entry, err := h.service.UpdateJournalEntry(journalId, payload.Title, payload.Content, payload.FolderID)
 	if err != nil {
 		http.Error(w, "failed to update entry", http.StatusInternalServerError)
 		return

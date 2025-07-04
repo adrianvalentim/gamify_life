@@ -125,11 +125,10 @@ export const useDocument = (documentId?: string) => {
     },
     onUpdate: ({ editor }) => {
       const content = editor.getHTML();
-      const titleNode = editor.state.doc.firstChild;
-      const title = titleNode ? titleNode.textContent : translations.untitledPage;
       
       setDocument(prevDoc => {
-        const newDoc = { ...(prevDoc || { id: documentId! }), title, content };
+        if (!prevDoc) return null;
+        const newDoc = { ...prevDoc, content };
         debouncedSave(newDoc as Document);
         return newDoc as Document;
       });
@@ -184,18 +183,9 @@ export const useDocument = (documentId?: string) => {
   }, [editor, document]);
 
   const handleTitleChange = (newTitle: string) => {
-    if (document && editor) {
+    if (document) {
       const updatedDoc = { ...document, title: newTitle };
       setDocument(updatedDoc);
-      
-      const from = 1; 
-      const to = editor.state.doc.firstChild?.nodeSize ?? from;
-
-      editor.chain().focus().command(({ tr }) => {
-        tr.insertText(newTitle, from, to);
-        return true;
-      }).run();
-
       debouncedSave(updatedDoc);
     }
   };
