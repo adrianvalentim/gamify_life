@@ -19,6 +19,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 		r.Post("/", h.createJournalEntry)
 		r.Get("/{journalId}", h.getJournalEntry)
 		r.Put("/{journalId}", h.updateJournalEntry)
+		r.Delete("/{journalId}", h.deleteJournalEntry)
 		r.Get("/user/{userID}", h.getJournalEntriesByUserID)
 	})
 }
@@ -86,4 +87,15 @@ func (h *Handler) getJournalEntriesByUserID(w http.ResponseWriter, r *http.Reque
 	}
 
 	json.NewEncoder(w).Encode(entries)
+}
+
+func (h *Handler) deleteJournalEntry(w http.ResponseWriter, r *http.Request) {
+	journalId := chi.URLParam(r, "journalId")
+	err := h.service.DeleteJournalEntry(journalId)
+	if err != nil {
+		http.Error(w, "failed to delete entry", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 } 

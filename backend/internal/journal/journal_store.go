@@ -11,6 +11,7 @@ type Store interface {
 	Update(entry *models.JournalEntry) error
 	Create(entry *models.JournalEntry) error
 	GetByUserID(userID string) ([]models.JournalEntry, error)
+	Delete(id string) error
 }
 
 // gormStore is a GORM implementation of the Store interface.
@@ -49,4 +50,10 @@ func (s *gormStore) GetByUserID(userID string) ([]models.JournalEntry, error) {
 		return nil, err
 	}
 	return entries, nil
+}
+
+// Delete removes a journal entry by its ID.
+func (s *gormStore) Delete(id string) error {
+	// GORM's delete function requires a model to delete, so we create a dummy one with the ID.
+	return s.db.Delete(&models.JournalEntry{}, "id = ?", id).Error
 } 

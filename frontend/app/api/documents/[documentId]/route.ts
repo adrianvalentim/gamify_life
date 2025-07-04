@@ -65,4 +65,36 @@ export async function PUT(
       { status: 500 }
     );
   }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { documentId: string } }
+) {
+  const { documentId } = params;
+  try {
+    const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      throw new Error(`Backend delete failed with status: ${res.status}`);
+    }
+
+    if (res.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error(
+      `Failed to delete document ${documentId} from Go backend:`,
+      error
+    );
+    return NextResponse.json(
+      { error: "Failed to delete document" },
+      { status: 500 }
+    );
+  }
 } 

@@ -15,6 +15,7 @@ type Service interface {
 	UpdateJournalEntry(id, title, content string) (*models.JournalEntry, error)
 	CreateJournalEntry(title, content, userID string) (*models.JournalEntry, error)
 	GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error)
+	DeleteJournalEntry(id string) error
 }
 
 type service struct {
@@ -86,4 +87,9 @@ func (s *service) CreateJournalEntry(title, content, userID string) (*models.Jou
 
 func (s *service) GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error) {
 	return s.store.GetByUserID(userID)
+}
+
+// DeleteJournalEntry deletes a journal entry by its ID.
+func (s *service) DeleteJournalEntry(id string) error {
+	return s.store.Delete(id)
 } 

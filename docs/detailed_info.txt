@@ -78,9 +78,9 @@ This document provides comprehensive information about the Gamify Journal projec
     *   Ensure backend secrets are managed securely (not committed to Git).
 *   **Database Setup**:
     *   Ensure PostgreSQL server is running.
-    *   Configure `DB_DSN` environment variable for the Go backend (when running from `backend/`).
+    *   Configure `DB_DSN` environment variable for the Go backend. A complete example is available in the root `package.json` under the `start:backend` script.
     *   Create the database if necessary (e.g., `CREATE DATABASE gamify_journal_db;`).
-    *   Database migrations are handled automatically by GORM on application startup (`DB.AutoMigrate()` in `backend/internal/platform/database/database.go`). This happens when the Go backend is started from the `backend/` directory.
+    *   Database migrations are handled automatically by GORM on application startup (`DB.AutoMigrate()` in `backend/internal/platform/database/database.go`). This happens when the Go backend is started.
     *   (Optional) Seed database: [Add command if seeding scripts exist for Go backend, to be run from `backend/`]
 *   **Secrets Management**:
     *   Sensitive keys (API keys, production database credentials like `DB_DSN`, any backend secret keys) should NEVER be committed to Git.
@@ -89,8 +89,11 @@ This document provides comprehensive information about the Gamify Journal projec
 ## 5. Running the Project
 
 *   **Development Servers**:
-    *   Backend (Go): `cd backend && go run cmd/server/main.go` (run from project root). Server typically runs on port 8080 unless `PORT` env var is set.
-    *   Frontend: `cd frontend && pnpm dev` (run from project root). Server typically runs on port 3000.
+    *   **All Services (Recommended)**: From the project root, run `npm run start:all`. This uses `concurrently` (defined in the root `package.json`) to start the frontend, backend, and AI services simultaneously.
+    *   **Individually**:
+        *   Backend (Go): `cd backend && DB_DSN='host=localhost user=youruser password=yourpassword dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC' go run ./cmd/server/main.go`. The server typically runs on port 8080.
+        *   Frontend: `cd frontend && pnpm dev`. The server typically runs on port 3000.
+        *   AI Service: `source ai_service/venv/bin/activate && uvicorn main:app --reload --port 8001 --app-dir ai_service`.
 *   **Running Tests**:
     *   Backend (Go): `cd backend && go test ./...` or `cd backend && go test ./internal/...` (run from project root, or relative from `backend/` dir).
     *   Frontend: `cd frontend && pnpm test` (run from project root, or `pnpm test` from `frontend/` dir).
@@ -140,13 +143,36 @@ This document provides comprehensive information about the Gamify Journal projec
 ## 8. API Endpoints
 
 *   Refer to the Go backend handlers (e.g., `backend/internal/user/user_handler.go`) or API documentation (e.g., Swagger/OpenAPI if generated) for detailed API specifications.
-*   Initial endpoints (as per Go backend details):
+*   **User & Auth Endpoints**:
     *   `GET /health`: Health check.
     *   `POST /api/v1/users/register`: Register a new user.
     *   `POST /api/v1/auth/login`: Login an existing user.
     *   `GET /api/v1/users/{userID}`: Get user details by ID.
+*   **Journal Endpoints**:
+    *   `POST /api/v1/journal`: Creates a new journal entry. Requires `title` and `user_id`. `content` is optional.
+    *   `GET /api/v1/journal/{journalId}`: Gets a specific journal entry by its ID.
+    *   `PUT /api/v1/journal/{journalId}`: Updates a journal entry's `title` and `content`.
+    *   `GET /api/v1/journal/user/{userID}`: Gets all journal entries for a given user.
 
-## 8.1. Character Module (New Feature - In Progress)
+## 8.1. Journal Module (Core Feature)
+
+The Journal module is the core of the application, allowing users to create, read, and update their journal entries.
+
+*   **Purpose**: To provide the main functionality of a journaling application.
+*   **Core Components**:
+    *   `backend/internal/models/journal_entry.go`: Defines the `JournalEntry` GORM model. Includes fields like `ID`, `UserID`, `Title`, `Content`, etc.
+    *   `backend/internal/journal/`: Directory containing the journal module's logic.
+        *   `backend/internal/journal/journal_handler.go`: Exposes journal functionalities via API endpoints. Handles HTTP request/response logic for the journal.
+        *   `backend/internal/journal/journal_service.go`: Contains the `Service` interface and implementation for journal business logic (creating, reading, updating entries).
+        *   `backend/internal/journal/journal_store.go`: Implements the `Store` interface. Contains the `gormStore` struct that uses GORM to interact with the `journal_entries` database table.
+*   **Key Logic & Frontend Integration**:
+    *   When a user creates a new page, the frontend (`use-document.tsx`) sends a `user_id` (currently hardcoded to `"user-123"`) to the backend.
+    *   The `journal_handler` receives this and passes it to the `journal_service` and `journal_store` to persist the new entry with the correct user association.
+    *   To display the list of pages, the frontend's sidebar (`sidebar.tsx`) calls the `useDocumentStructure` hook.
+    *   This hook fetches data from the Next.js API route `/api/documents/structure`.
+    *   This route now calls the live backend endpoint `GET /api/v1/journal/user/{userID}` to get the real document list, replacing the previous mock database implementation (`frontend/lib/mock-db.ts` has been deleted).
+
+## 8.2. Character Module (New Feature - In Progress)
 
 The Character module is being implemented to allow users to create and manage RPG-style characters that level up based on their journaling activity.
 

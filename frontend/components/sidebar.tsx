@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -41,6 +41,12 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useLanguage } from "@/hooks/use-language"
 import { SettingsPanel } from "@/components/settings-panel"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 
 interface SidebarProps {
   activeDocumentId?: string
@@ -48,6 +54,7 @@ interface SidebarProps {
 
 export function Sidebar({ activeDocumentId }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const { createDocument, navigateToDocument, isLoading: isCreating } = useDocument()
   const { structure, isLoading: isLoadingStructure, revalidateStructure } = useDocumentStructure()
   const { toast } = useToast()
@@ -109,6 +116,36 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     }
   };
 
+  const handleDeleteDocument = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      toast({
+        title: "Success",
+        description: "Document deleted successfully",
+      });
+
+      revalidateStructure();
+      
+      if(activeDocumentId === documentId) {
+          router.push('/docs');
+      }
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete document",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderFolder = (
     folder: {
       id: string
@@ -148,26 +185,47 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
 
         {isExpanded && (
           <div className="space-y-1">
-            {folder.documents?.map((doc) => (
-              <Link key={doc.id} href={`/docs/${doc.id}`}>
-                <div
-                  className={cn(
-                    "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
-                    depth > 0 && "ml-3",
-                    activeDocumentId === doc.id && "bg-accent",
-                  )}
-                >
-                  <span className="ml-5 mr-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </span>
-                  <span className="truncate">{doc.name}</span>
-                </div>
-              </Link>
-            ))}
+            {folder.documents?.map((doc) => renderDocumentItem(doc, depth + 1))}
             {folder.subfolders?.map((subfolder) => renderFolder(subfolder, depth + 1))}
           </div>
         )}
       </div>
+    )
+  }
+
+  const renderDocumentItem = (
+    doc: { id: string; name: string },
+    depth = 0,
+  ) => {
+    return (
+      <ContextMenu key={doc.id}>
+        <ContextMenuTrigger asChild>
+          <Link href={`/docs/${doc.id}`} passHref>
+            <div
+              className={cn(
+                "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
+                depth > 0 && "ml-3",
+                activeDocumentId === doc.id && "bg-accent",
+              )}
+            >
+              <span className={cn("mr-2", depth === 0 && "ml-0", depth > 0 && "ml-5")}>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </span>
+              <span className="truncate">{doc.name}</span>
+            </div>
+          </Link>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem>Rename</ContextMenuItem>
+          <ContextMenuItem>Move</ContextMenuItem>
+          <ContextMenuItem
+            className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+            onSelect={() => handleDeleteDocument(doc.id)}
+          >
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     )
   }
 
@@ -238,21 +296,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
         {/* Root documents */}
         {structure.rootDocuments.length > 0 && (
           <div className="space-y-1 py-2">
-            {structure.rootDocuments.map((doc) => (
-              <Link key={doc.id} href={`/docs/${doc.id}`}>
-                <div
-                  className={cn(
-                    "flex items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors",
-                    activeDocumentId === doc.id && "bg-accent",
-                  )}
-                >
-                  <span className="mr-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </span>
-                  <span className="truncate">{doc.name}</span>
-                </div>
-              </Link>
-            ))}
+            {structure.rootDocuments.map((doc) => renderDocumentItem(doc))}
           </div>
         )}
         
