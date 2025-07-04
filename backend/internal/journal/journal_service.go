@@ -3,8 +3,10 @@ package journal
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/adrianvalentim/gamify_journal/internal/ai"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"gorm.io/gorm"
 )
@@ -19,12 +21,13 @@ type Service interface {
 }
 
 type service struct {
-	store Store
+	store     Store
+	aiService *ai.AIService
 }
 
 // NewService creates a new journal service.
-func NewService(store Store) Service {
-	return &service{store: store}
+func NewService(store Store, aiService *ai.AIService) Service {
+	return &service{store: store, aiService: aiService}
 }
 
 // GetJournalEntry retrieves a journal entry, creating it if it doesn't exist.
@@ -76,6 +79,21 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 	if err := s.store.Update(entry); err != nil {
 		return nil, err
 	}
+
+	// After successfully updating, send content to the AI service
+	go func() {
+		aiInput := ai.ProcessTextInput{
+			Text:   content, // For now, we send the whole content
+			UserID: entry.UserID,
+		}
+		aiResponse, err := s.aiService.ProcessText(aiInput)
+		if err != nil {
+			log.Printf("Failed to process text with AI service: %v", err)
+			return
+		}
+		log.Printf("AI service processed entry %s, response: %+v", id, aiResponse)
+	}()
+
 	return entry, nil
 }
 

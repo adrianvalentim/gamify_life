@@ -11,6 +11,7 @@ import (
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
+	"github.com/adrianvalentim/gamify_journal/internal/ai"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -52,8 +53,9 @@ func main() {
 	characterStore := character.NewStore(dbInstance)
 	folderStore := folder.NewStore(dbInstance)
 
+	aiService := ai.NewAIService()
 	userService := user.NewService(userStore)
-	journalService := journal.NewService(journalStore)
+	journalService := journal.NewService(journalStore, aiService)
 	characterService := character.NewService(characterStore)
 	folderService := folder.NewService(folderStore)
 
