@@ -55,7 +55,9 @@ export function CharacterDisplay({
       <div className="flex-grow">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-sm">
-            {characterClass.charAt(0).toUpperCase() + characterClass.slice(1)}
+            {characterClass
+              ? characterClass.charAt(0).toUpperCase() + characterClass.slice(1)
+              : "Adventurer"}
           </h3>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <span>
