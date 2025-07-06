@@ -8,86 +8,124 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Sword, Heart, Zap, Award, BookOpen, Target, Gift } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { Shield, Sword, Heart, Zap, Award, BookOpen, Target, Gift, ArrowLeft } from "lucide-react"
+
+// Define the structure of the character data
+interface Character {
+  id: string
+  name: string
+  class: string
+  level: number
+  xp: number
+}
+
+// Function to calculate XP needed for the next level
+const getNextLevelXp = (level: number) => {
+  return level * 100
+}
 
 export default function CharacterPage() {
-  // This would eventually be fetched from the API
-  const [character, setCharacter] = useState({
-    id: '1',
-    name: 'Aventureiro',
-    class: 'Warrior',
-    level: 5,
-    xp: 450,
-    nextLevelXp: 600,
-    attributes: {
-      strength: 10 + Math.floor(5 / 2),
-      defense: 8 + Math.floor(5 / 3),
-      health: 100 + (5 * 10),
-      mana: 50 + (5 * 5)
-    }
-  })
-  
+  const [character, setCharacter] = useState<Character | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const { toast } = useToast()
   
   useEffect(() => {
-    // Simulate API fetch
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 500)
-    
-    return () => clearTimeout(timer)
-    
-    // In the future, this would fetch from the character API
-    // async function fetchCharacter() {
-    //   try {
-    //     const response = await fetch('/api/v1/characters/me')
-    //     if (response.ok) {
-    //       const data = await response.json()
-    //       setCharacter(data)
-    //     }
-    //   } catch (error) {
-    //     console.error('Failed to fetch character', error)
-    //   } finally {
-    //     setIsLoading(false)
-    //   }
-    // }
-    // 
-    // fetchCharacter()
-  }, [])
-  
-  const progress = (character.xp / character.nextLevelXp) * 100
-  
+    async function fetchCharacter() {
+      setIsLoading(true)
+      try {
+        const response = await fetch("/api/character", { cache: "no-store" })
+        if (response.ok) {
+          const data: Character = await response.json()
+          setCharacter(data)
+
+          // Check for level up against locally stored level
+          const storedLevelKey = `character_level_${data.id}`
+          const storedLevel = localStorage.getItem(storedLevelKey)
+
+          if (storedLevel && data.level > parseInt(storedLevel, 10)) {
+            toast({
+              title: "🎉 Level Up!",
+              description: `Parabéns, você alcançou o nível ${data.level}!`,
+              duration: 5000,
+            })
+          }
+
+          // Update local storage with the latest level
+          localStorage.setItem(storedLevelKey, data.level.toString())
+        } else {
+          // If no character exists, redirect to a creation page (or show a message)
+          // For now, we'll just log it.
+          console.error("No character found for this user.")
+          // router.push('/character/create')
+        }
+      } catch (error) {
+        console.error("Failed to fetch character", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCharacter()
+  }, [toast])
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     )
+  }
+
+  if (!character) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center">
+        <h2 className="text-2xl font-semibold mb-4">
+          Personagem não encontrado
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Parece que você ainda não tem um personagem.
+        </p>
+        <Button onClick={() => router.push("/")}>Voltar para o Início</Button>
+      </div>
+    )
+  }
+
+  const nextLevelXp = getNextLevelXp(character.level)
+  const progress = (character.xp / nextLevelXp) * 100
+  
+  // Basic attributes based on level (can be expanded later)
+  const attributes = {
+    strength: 10 + Math.floor(character.level / 2),
+    defense: 8 + Math.floor(character.level / 3),
+    health: 100 + (character.level * 10),
+    mana: 50 + (character.level * 5),
   }
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-5xl">
       <Button 
         variant="ghost" 
-        className="mb-4"
+        className="mb-4 flex items-center gap-2"
         onClick={() => router.back()}
       >
-        ← Voltar
+        <ArrowLeft className="h-4 w-4" />
+        Voltar
       </Button>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="col-span-1 lg:row-span-2">
+        <Card className="col-span-1 lg:row-span-2 bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle>Ficha de Personagem</CardTitle>
             <CardDescription>Seu personagem no mundo de Gamify Journal</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <div className="relative mb-4">
-              <div className="bg-amber-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold absolute -top-2 -right-2 z-10">
+              <div className="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold absolute -top-2 -right-2 z-10 border-2 border-background">
                 {character.level}
               </div>
-              <div className="rounded-full border-4 border-amber-500 p-1 overflow-hidden">
+              <div className="rounded-full border-4 border-primary p-1 overflow-hidden">
                 <Image
                   src={"/placeholder.svg"}
                   alt="Character avatar"
@@ -99,14 +137,14 @@ export default function CharacterPage() {
             </div>
             
             <h2 className="text-xl font-bold">{character.name}</h2>
-            <Badge variant="outline" className="mt-1 mb-4">
+            <Badge variant="secondary" className="mt-1 mb-4">
               {character.class}
             </Badge>
             
             <div className="w-full">
-              <div className="flex justify-between text-sm mb-1">
+              <div className="flex justify-between text-sm mb-1 text-muted-foreground">
                 <span>Experiência</span>
-                <span>{character.xp}/{character.nextLevelXp}</span>
+                <span>{character.xp}/{nextLevelXp}</span>
               </div>
               <Progress value={progress} className="h-2 mb-6" />
               
@@ -115,7 +153,7 @@ export default function CharacterPage() {
                   <Sword className="h-5 w-5 text-red-500" />
                   <div>
                     <div className="text-xs text-muted-foreground">Força</div>
-                    <div className="font-medium">{character.attributes.strength}</div>
+                    <div className="font-medium">{attributes.strength}</div>
                   </div>
                 </div>
                 
@@ -123,15 +161,15 @@ export default function CharacterPage() {
                   <Shield className="h-5 w-5 text-blue-500" />
                   <div>
                     <div className="text-xs text-muted-foreground">Defesa</div>
-                    <div className="font-medium">{character.attributes.defense}</div>
+                    <div className="font-medium">{attributes.defense}</div>
                   </div>
                 </div>
                 
                 <div className="flex items-center gap-2 bg-muted/50 p-3 rounded-lg">
-                  <Heart className="h-5 w-5 text-red-500" />
+                  <Heart className="h-5 w-5 text-green-500" />
                   <div>
                     <div className="text-xs text-muted-foreground">Saúde</div>
-                    <div className="font-medium">{character.attributes.health}</div>
+                    <div className="font-medium">{attributes.health}</div>
                   </div>
                 </div>
                 
@@ -139,7 +177,7 @@ export default function CharacterPage() {
                   <Zap className="h-5 w-5 text-purple-500" />
                   <div>
                     <div className="text-xs text-muted-foreground">Mana</div>
-                    <div className="font-medium">{character.attributes.mana}</div>
+                    <div className="font-medium">{attributes.mana}</div>
                   </div>
                 </div>
               </div>
@@ -208,7 +246,7 @@ export default function CharacterPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="border-l-2 border-amber-500 pl-4 py-2">
+                    <div className="border-l-2 border-primary pl-4 py-2">
                       <h3 className="font-semibold">Capítulo 1: O Início da Jornada</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Você começou sua jornada como um escritor novato, mas cheio de determinação.
@@ -221,7 +259,7 @@ export default function CharacterPage() {
                       </div>
                     </div>
                     
-                    <div className="border-l-2 border-amber-500 pl-4 py-2">
+                    <div className="border-l-2 border-primary pl-4 py-2">
                       <h3 className="font-semibold">Capítulo 2: Disciplina Diária</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Após dominar o básico, você estabeleceu uma rotina consistente de escrita.
@@ -245,36 +283,8 @@ export default function CharacterPage() {
                   <CardDescription>Conquistas e itens desbloqueados</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border rounded-lg p-4 flex items-center gap-3">
-                      <div className="bg-amber-100 p-2 rounded-full">
-                        <Award className="h-6 w-6 text-amber-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Escrevinhador Constante</h3>
-                        <p className="text-xs text-muted-foreground">Escreveu por 7 dias seguidos</p>
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-lg p-4 flex items-center gap-3">
-                      <div className="bg-indigo-100 p-2 rounded-full">
-                        <Zap className="h-6 w-6 text-indigo-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Mestre das Palavras</h3>
-                        <p className="text-xs text-muted-foreground">Escreveu mais de 10.000 palavras</p>
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-lg p-4 flex items-center gap-3 opacity-50">
-                      <div className="bg-gray-100 p-2 rounded-full">
-                        <Gift className="h-6 w-6 text-gray-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Tema Especial</h3>
-                        <p className="text-xs text-muted-foreground">Desbloqueado no nível 10</p>
-                      </div>
-                    </div>
+                  <div className="text-center text-muted-foreground">
+                    <p>Nenhuma recompensa ainda.</p>
                   </div>
                 </CardContent>
               </Card>

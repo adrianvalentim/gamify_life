@@ -4,7 +4,6 @@ import (
 	"errors" // Standard Go errors package
 	"github.com/adrianvalentim/gamify_journal/internal/models" // Adjust path as necessary
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +24,7 @@ func (s *Store) CreateCharacter(character *models.Character) error {
 }
 
 // GetCharacterByUserID retrieves a character by their UserID.
-func (s *Store) GetCharacterByUserID(userID uuid.UUID) (*models.Character, error) {
+func (s *Store) GetCharacterByUserID(userID string) (*models.Character, error) {
 	var character models.Character
 	// It's good practice to preload related data if you often need it, e.g., User.
 	// err := s.db.Preload("User").Where("user_id = ?", userID).First(&character).Error
@@ -47,7 +46,7 @@ func (s *Store) UpdateCharacter(character *models.Character) error {
 }
 
 // GetCharacterByID retrieves a character by their ID.
-func (s *Store) GetCharacterByID(id uuid.UUID) (*models.Character, error) {
+func (s *Store) GetCharacterByID(id string) (*models.Character, error) {
 	var character models.Character
 	err := s.db.First(&character, "id = ?", id).Error
 	if err != nil {

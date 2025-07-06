@@ -1,12 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { EditorContent } from "@tiptap/react"
 import { CharacterDisplay } from "@/components/character-display"
 import { EditorToolbar } from "@/components/editor-toolbar"
 import { QuestPanel } from "@/components/quest-panel"
-import { useXpSystem } from "@/hooks/use-xp-system"
 import { QuestInfoPanel } from "@/components/quest-info-panel"
 import { cn } from "@/lib/utils"
 import { useDocument } from "@/hooks/use-document"
@@ -16,12 +15,41 @@ interface DocumentEditorProps {
   documentId: string
 }
 
+interface Character {
+  level: number
+  xp: number
+  class: string
+}
+
+const getNextLevelXp = (level: number) => {
+  return level * 100
+}
+
 export function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [showQuestPanel, setShowQuestPanel] = useState(false)
   const [showQuestInfo, setShowQuestInfo] = useState(false)
-  const { addXp, characterLevel, characterXp, nextLevelXp } = useXpSystem()
+  const [character, setCharacter] = useState<Character | null>(null)
   const { translations } = useLanguage()
   const { editor, document, saving, handleTitleChange } = useDocument(documentId)
+
+  useEffect(() => {
+    const fetchCharacter = async () => {
+      try {
+        const response = await fetch("/api/character", { cache: "no-store" })
+        if (response.ok) {
+          const data = await response.json()
+          setCharacter(data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch character data:", error)
+      }
+    }
+
+    fetchCharacter()
+    const interval = setInterval(fetchCharacter, 5000) // Refresh every 5 seconds
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleEditorAreaClick = useCallback(
     (event: React.MouseEvent) => {
@@ -34,9 +62,11 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
     [editor],
   )
 
-  if (!editor || !document) {
-    return <div>Loading...</div>;
+  if (!editor || !document || !character) {
+    return <div>Loading...</div>
   }
+
+  const nextLevelXp = getNextLevelXp(character.level)
 
   return (
     <div className="relative h-full flex">
@@ -51,9 +81,10 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
         <div className="absolute top-4 right-4 z-10 flex items-center space-x-4">
           {saving && <div className="text-muted-foreground text-sm">Saving...</div>}
           <CharacterDisplay
-            level={characterLevel}
-            xp={characterXp}
+            level={character.level}
+            xp={character.xp}
             nextLevelXp={nextLevelXp}
+            characterClass={character.class}
             showQuestInfo={showQuestInfo}
             onToggleQuestInfo={() => setShowQuestInfo(!showQuestInfo)}
           />
@@ -85,11 +116,11 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
       {/* Quest info panel */}
       {showQuestInfo && (
         <div className="w-[350px] flex-shrink-0">
-        <QuestInfoPanel
-          onClose={() => setShowQuestInfo(false)}
-          characterClass={characterLevel > 5 ? "mage" : "warrior"}
-          level={characterLevel}
-        />
+          <QuestInfoPanel
+            onClose={() => setShowQuestInfo(false)}
+            characterClass={character.class}
+            level={character.level}
+          />
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/adrianvalentim/gamify_journal/internal/ai"
+	"github.com/adrianvalentim/gamify_journal/internal/character"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"gorm.io/gorm"
 )
@@ -21,13 +22,14 @@ type Service interface {
 }
 
 type service struct {
-	store     Store
-	aiService *ai.AIService
+	store            Store
+	aiService        *ai.AIService
+	characterService *character.Service
 }
 
 // NewService creates a new journal service.
-func NewService(store Store, aiService *ai.AIService) Service {
-	return &service{store: store, aiService: aiService}
+func NewService(store Store, aiService *ai.AIService, characterService *character.Service) Service {
+	return &service{store: store, aiService: aiService, characterService: characterService}
 }
 
 // GetJournalEntry retrieves a journal entry, creating it if it doesn't exist.
@@ -82,15 +84,23 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 
 	// After successfully updating, send content to the AI service
 	go func() {
-		aiInput := ai.ProcessTextInput{
-			Text:   content, // For now, we send the whole content
-			UserID: entry.UserID,
-		}
-		aiResponse, err := s.aiService.ProcessText(aiInput)
+		aiResponse, err := s.aiService.ProcessText(content, entry.UserID)
 		if err != nil {
 			log.Printf("Failed to process text with AI service: %v", err)
 			return
 		}
+
+		if aiResponse != nil {
+			action, ok := aiResponse["action"].(string)
+			if ok && action == "AWARD_XP" {
+				// The AI service now handles the XP update via a callback to the backend.
+				// We can log that the process was triggered.
+				log.Printf("AI agent initiated XP award for user %s.", entry.UserID)
+			} else {
+				log.Printf("AI agent returned action: '%s' or action not a string.", action)
+			}
+		}
+
 		log.Printf("AI service processed entry %s, response: %+v", id, aiResponse)
 	}()
 
@@ -120,4 +130,4 @@ func (s *service) GetJournalEntriesByUserID(userID string) ([]models.JournalEntr
 // DeleteJournalEntry deletes a journal entry by its ID.
 func (s *service) DeleteJournalEntry(id string) error {
 	return s.store.Delete(id)
-} 
+}

@@ -1,22 +1,24 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/adrianvalentim/gamify_journal/internal/ai"
 	"github.com/adrianvalentim/gamify_journal/internal/character"
 	"github.com/adrianvalentim/gamify_journal/internal/folder"
 	"github.com/adrianvalentim/gamify_journal/internal/journal"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
-	"github.com/adrianvalentim/gamify_journal/internal/ai"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -54,9 +56,9 @@ func main() {
 	folderStore := folder.NewStore(dbInstance)
 
 	aiService := ai.NewAIService()
-	userService := user.NewService(userStore)
-	journalService := journal.NewService(journalStore, aiService)
 	characterService := character.NewService(characterStore)
+	userService := user.NewService(userStore)
+	journalService := journal.NewService(journalStore, aiService, characterService)
 	folderService := folder.NewService(folderStore)
 
 	userHandler := user.NewHandler(userService)
@@ -65,7 +67,7 @@ func main() {
 	folderHandler := folder.NewHandler(folderService)
 
 	// Seed data
-	seedData(userStore)
+	seedData(userStore, characterStore)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Mount("/users", userRouter(userHandler))
@@ -88,35 +90,56 @@ func main() {
 	}
 }
 
-func seedData(userStore user.Store) {
+func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 	const seedUserID = "user-123"
+	// Seed User
 	existingUser, err := userStore.GetByID(seedUserID)
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Fatalf("Error checking for seed user: %v", err)
-		return
-	}
-	if existingUser != nil {
-		log.Printf("User %s already exists. Skipping seed.", seedUserID)
-		return
 	}
 
-	log.Println("Seeding initial user...")
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatalf("Could not hash password for seed user: %v", err)
+	if existingUser == nil {
+		log.Println("Seeding initial user...")
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password"), bcrypt.DefaultCost)
+		if err != nil {
+			log.Fatalf("Could not hash password for seed user: %v", err)
+		}
+		seedUser := &models.User{
+			ID:             seedUserID,
+			Username:       "testuser",
+			Email:          "test@example.com",
+			HashedPassword: string(hashedPassword),
+		}
+		if err := userStore.Create(seedUser); err != nil {
+			log.Fatalf("Could not create seed user: %v", err)
+		}
+		log.Println("Successfully seeded user user-123.")
+	} else {
+		log.Printf("User %s already exists. Skipping user seed.", seedUserID)
 	}
 
-	seedUser := &models.User{
-		ID:             seedUserID,
-		Username:       "testuser",
-		Email:          "test@example.com",
-		HashedPassword: string(hashedPassword),
+	// Seed Character
+	existingChar, err := characterStore.GetCharacterByUserID(seedUserID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		log.Fatalf("Error checking for seed character: %v", err)
 	}
 
-	if err := userStore.Create(seedUser); err != nil {
-		log.Fatalf("Could not create seed user: %v", err)
+	if existingChar == nil {
+		log.Println("Seeding initial character for user-123...")
+		newChar := &models.Character{
+			UserID: seedUserID,
+			Name:   "Aventureiro",
+			Class:  string(models.Warrior),
+			Level:  1,
+			XP:     0,
+		}
+		if err := characterStore.CreateCharacter(newChar); err != nil {
+			log.Fatalf("Could not create seed character: %v", err)
+		}
+		log.Println("Successfully seeded character for user user-123.")
+	} else {
+		log.Printf("Character for user %s already exists. Skipping character seed.", seedUserID)
 	}
-	log.Println("Successfully seeded user user-123.")
 }
 
 func userRouter(h *user.Handler) http.Handler {
@@ -130,4 +153,4 @@ func authRouter(h *user.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Post("/login", h.HandleLoginUser)
 	return r
-} 
+}

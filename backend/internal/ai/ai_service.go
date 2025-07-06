@@ -3,6 +3,8 @@ package ai
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -49,40 +51,33 @@ type AIResponse struct {
 
 // ProcessText simulates processing text with an AI model.
 // Later, this will call the Google Gemini API.
-func (s *AIService) ProcessText(input ProcessTextInput) (*AIResponse, error) {
-	log.Printf("AIService: Sending text to AI service for user %s: '%s'", input.UserID, input.Text)
+func (s *AIService) ProcessText(text string, userID string) (map[string]interface{}, error) {
+	log.Printf("AIService: Sending text to AI service for user %s: '%s'", userID, text)
 
-	requestBody, err := json.Marshal(input)
+	requestBody, err := json.Marshal(map[string]string{
+		"paragraph": text,
+		"user_id":   userID,
+	})
 	if err != nil {
-		log.Printf("Error marshalling AI request: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", aiServiceURL, bytes.NewBuffer(requestBody))
+	resp, err := http.Post("http://localhost:8001/agent/update_character", "application/json", bytes.NewBuffer(requestBody))
 	if err != nil {
-		log.Printf("Error creating AI request: %v", err)
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.HttpClient.Do(req)
-	if err != nil {
-		log.Printf("Error sending request to AI service: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to send request to AI service: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("AI service returned non-OK status: %d", resp.StatusCode)
-		return nil, err
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("AI service returned non-OK status: %d, body: %s", resp.StatusCode, string(body))
 	}
 
-	var aiResp AIResponse
+	var aiResp map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&aiResp); err != nil {
-		log.Printf("Error decoding AI response: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to decode AI response: %w", err)
 	}
 
 	log.Printf("AIService: Received response from AI: %+v", aiResp)
-	return &aiResp, nil
-} 
+	return aiResp, nil
+}
