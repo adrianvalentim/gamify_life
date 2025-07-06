@@ -1,31 +1,54 @@
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Build an absolute path to the .env file.
-# This ensures it's found regardless of where the script is run from.
-config_dir = Path(__file__).parent.resolve()
-env_path = config_dir / ".env"
+# This will be configured by main.py
+logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
-load_dotenv(dotenv_path=env_path)
+gemini = None
 
-# Get API key from environment variable
-api_key = os.getenv('GEMINI_API_KEY')
-if not api_key:
-    raise ValueError("Please set GEMINI_API_KEY in your .env file")
+def initialize_gemini():
+    """
+    Initializes the Gemini client by loading the API key from environment
+    variables and configuring the generative model.
+    """
+    global gemini
+    logger.info("Starting Gemini Configuration...")
 
-genai.configure(api_key=api_key)
+    config_dir = Path(__file__).parent.resolve()
+    env_path = config_dir / ".env"
 
-generation_config = {
-  "temperature": 1,
-  "top_p": 0.95,
-  "top_k": 64,
-  "max_output_tokens": 8192,
-}
+    logger.info(f"Searching for .env file at: {env_path}")
+    if env_path.is_file():
+        logger.info(".env file found, loading variables.")
+        load_dotenv(dotenv_path=env_path, verbose=True)
+    else:
+        logger.warning(".env file not found. Relying on host environment variables.")
 
-gemini = genai.GenerativeModel(
-  model_name="gemini-2.0-flash",
-  generation_config=generation_config,
-)
+    api_key = os.getenv('GEMINI_API_KEY')
+    if not api_key:
+        logger.error("GEMINI_API_KEY not found in environment.")
+        raise ValueError("GEMINI_API_KEY must be set.")
+
+    logger.info("GEMINI_API_KEY loaded successfully.")
+    
+    try:
+        genai.configure(api_key=api_key)
+
+        generation_config = {
+            "temperature": 1,
+            "top_p": 0.95,
+            "top_k": 64,
+            "max_output_tokens": 8192,
+        }
+
+        gemini = genai.GenerativeModel(
+            model_name="gemini-2.5-flash",
+            generation_config=generation_config,
+        )
+        logger.info("Gemini generative model initialized successfully.")
+    except Exception as e:
+        logger.error(f"Failed to configure or initialize Gemini model: {e}")
+        raise

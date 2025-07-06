@@ -39,9 +39,9 @@ func (h *AIHandler) handleProcessText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("AIHandler: Received request to process text: '%s'", input.Text)
+	log.Printf("AIHandler: Received request to process text: '%s' for user '%s'", input.Text, input.UserID)
 
-	output, err := h.Service.ProcessText(input)
+	output, err := h.Service.ProcessText(input.Text, input.UserID)
 	if err != nil {
 		log.Printf("AIHandler: Error processing text: %v", err)
 		http.Error(w, "Failed to process text", http.StatusInternalServerError)
@@ -58,4 +58,4 @@ func (h *AIHandler) handleProcessText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("AIHandler: Successfully processed text and sent response.")
-} 
+}

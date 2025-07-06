@@ -1,142 +1,147 @@
 from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+import logging
+import sys
+from pathlib import Path
+import os
+import json
+import httpx
+
+import gemini_config
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import os
-from pathlib import Path
 
-# Import the configured Gemini model
-from gemini_config import gemini
-
-# Placeholder for Gemini API Key - Load from environment variable
-# For local development, you might set this in your shell:
-# export GEMINI_API_KEY="your_actual_api_key"
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-app = FastAPI()
-
-# --- CORS Middleware ---
-# This allows the frontend (running on http://localhost:3000)
-# to communicate with this backend service (running on http://localhost:8000).
-origins = [
-    "http://localhost:3000",
-    "http://localhost",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"], # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allow all headers
+# --- Logger Setup ---
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(asctime)s - %(message)s",
+    stream=sys.stdout
 )
 
-class TextInput(BaseModel):
-    text: str
-    user_id: str # Optional: To associate the text with a user
-    # Add other relevant context your Go backend might send
+# --- Lifespan Manager ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("AI Service: Initializing...")
+    try:
+        gemini_config.initialize_gemini()
+        logger.info("AI Service: Gemini initialization successful. Service is ready.")
+    except Exception as e:
+        logger.critical(f"AI Service: FATAL ERROR during Gemini initialization: {e}")
+    yield
+    logger.info("AI Service: Shutting down...")
 
+app = FastAPI(lifespan=lifespan)
+
+# --- CORS Middleware ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Pydantic Models ---
 class ParagraphInput(BaseModel):
     paragraph: str
+    user_id: str
 
-class Action(BaseModel):
-    type: str
-    target_entity: str
-    entity_id: str | None = None # e.g., character_id, mission_id
-    parameters: dict | None = None # e.g., {"amount": 50} for XP
+# --- Backend Communication ---
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1")
 
-class AIResponse(BaseModel):
-    suggested_actions: list[Action]
+async def update_character_xp_in_backend(user_id: str, xp_amount: int):
+    """Calls the backend to update the character's XP."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{BACKEND_URL}/users/{user_id}/character/xp",
+                json={"xp_amount": xp_amount}
+            )
+            response.raise_for_status()
+            logger.info(f"Successfully updated XP for user {user_id} by {xp_amount}.")
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"Error calling backend to update XP for user {user_id}: {e}")
+        # This is an internal error, so we don't expose it to the client
+        return None
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during XP update for user {user_id}: {e}")
+        return None
 
+
+# --- AI Agents ---
+async def update_character_agent(paragraph: str) -> dict:
+    """
+    Analyzes the user's paragraph to award XP using a specialized agent.
+    """
+    if gemini_config.gemini is None:
+        raise HTTPException(status_code=503, detail="AI Service is not initialized.")
+
+    try:
+        prompt_path = Path(__file__).parent / "prompts" / "update_character_xp"
+        with open(prompt_path, "r") as f:
+            prompt_template = f.read()
+
+        full_prompt = f"{prompt_template}\n\nUser's paragraph:\n\"{paragraph}\""
+        
+        response = gemini_config.gemini.generate_content(full_prompt)
+        
+        # Clean the response to ensure it's valid JSON
+        cleaned_response = response.text.strip().replace('`', '')
+        if cleaned_response.startswith("json"):
+            cleaned_response = cleaned_response[4:].strip()
+            
+        return json.loads(cleaned_response)
+
+    except FileNotFoundError:
+        logger.error(f"Prompt file not found at {prompt_path}")
+        raise HTTPException(status_code=500, detail="Agent prompt file not found.")
+    except json.JSONDecodeError:
+        logger.error(f"Failed to decode JSON from AI response: {response.text}")
+        raise HTTPException(status_code=500, detail="Invalid format in AI response.")
+    except Exception as e:
+        logger.error(f"Error in update_character_agent: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing with the agent.")
+
+
+# --- API Endpoints ---
 @app.get("/")
-async def root():
+def read_root():
+    if gemini_config.gemini is None:
+        raise HTTPException(status_code=503, detail="Service Unavailable: AI Model is not initialized.")
     return {"message": "Gamify Life AI Service is running!"}
 
 @app.post("/agent/update_character")
 async def agent_update_character(input_data: ParagraphInput):
-    """
-    Receives a paragraph, combines it with a prompt, and sends it to Gemini.
-    """
-    try:
-        # 1. Load the prompt from the specified file using an absolute path
-        main_py_dir = Path(__file__).parent.resolve()
-        prompt_path = main_py_dir / "prompts" / "update_character"
-        
-        with open(prompt_path, "r") as f:
-            prompt_template = f.read()
-
-        # 2. Combine the prompt with the input paragraph
-        full_prompt = f"{prompt_template}\\n\\nUser's paragraph:\\n\\\"{input_data.paragraph}\\\""
-
-        # 3. Send to Gemini API
-        print(f"Sending prompt to Gemini: {full_prompt}")
-        gemini_response = gemini.generate_content(full_prompt)
-
-        # 4. Print the response to the terminal
-        print("--- AI Agent Response ---")
-        print(gemini_response.text)
-        print("-------------------------")
-
-        # 5. Return the response to the frontend
-        return {"response": gemini_response.text}
-
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail=f"Prompt file not found at {prompt_path}")
-    except Exception as e:
-        # Log the error for debugging
-        print(f"An error occurred: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while processing the request with Gemini.")
-
-@app.post("/process-text", response_model=AIResponse)
-async def process_text(input_data: TextInput):
-    """
-    Receives text from the Go backend, (will) interact with Gemini API,
-    and returns structured actions.
-    """
-    print(f"Received text: {input_data.text} for user: {input_data.user_id}")
-
-    # ---- AI Logic Placeholder ----
-    # In a real scenario:
-    # 1. Validate GEMINI_API_KEY
-    # if not GEMINI_API_KEY:
-    #     raise HTTPException(status_code=500, detail="Gemini API key not configured")
-    # 2. Initialize Gemini client (e.g., using the google.generativeai library)
-    #    genai.configure(api_key=GEMINI_API_KEY)
-    #    model = genai.GenerativeModel('gemini-pro') # Or your chosen model
-    # 3. Prepare prompt for Gemini using input_data.text and any other context.
-    #    prompt = f"User '{input_data.user_id}' wrote: '{input_data.text}'. What game actions should be taken?"
-    # 4. Send prompt to Gemini API.
-    #    gemini_response = model.generate_content(prompt)
-    # 5. Parse Gemini's response to determine actions.
-    #    (This is the complex part - you'll need to define how Gemini's output maps to your game actions)
-    # -------------------------------
-
-    # For now, return a dummy action based on the input text.
-    # This is where your Python AI agent's logic using Gemini would go.
-    # It would analyze input_data.text and decide what actions to suggest.
+    logger.info(f"Received paragraph from user {input_data.user_id} for character update.")
     
-    actions = []
-    if "complete quest" in input_data.text.lower():
-        actions.append(Action(
-            type="COMPLETE_QUEST",
-            target_entity="quest",
-            entity_id="quest_123_placeholder", # This would be dynamically determined
-            parameters={"xp_reward": 100}
-        ))
-    elif "level up" in input_data.text.lower() or "gain exp" in input_data.text.lower():
-        actions.append(Action(
-            type="GRANT_XP",
-            target_entity="character",
-            entity_id="char_abc_placeholder", # This would be dynamically determined
-            parameters={"amount": 50}
-        ))
-    else:
-        actions.append(Action(
-            type="NO_ACTION_RECOGNIZED",
-            target_entity="none",
-            parameters={"original_text": input_data.text}
-        ))
+    agent_response = await update_character_agent(input_data.paragraph)
 
-    return AIResponse(suggested_actions=actions)
+    action = agent_response.get("action")
+    
+    if action == "AWARD_XP":
+        tool_calls = agent_response.get("tool_calls", [])
+        if not tool_calls:
+            return {"status": "no_op", "detail": "Agent decided to award XP but provided no tool call."}
+
+        xp_call = next((call for call in tool_calls if call.get("name") == "update_xp"), None)
+        
+        if xp_call:
+            xp_amount = xp_call.get("args", {}).get("xp_amount")
+            if isinstance(xp_amount, int):
+                logger.info(f"Agent decided to award {xp_amount} XP to user {input_data.user_id}.")
+                await update_character_xp_in_backend(input_data.user_id, xp_amount)
+                return {"status": "success", "action": "AWARD_XP", "xp_awarded": xp_amount}
+            else:
+                return {"status": "no_op", "detail": "Agent provided invalid 'xp_amount'."}
+
+    elif action == "NO_ACTION_RECOGNIZED":
+        logger.info(f"Agent recognized no action for user {input_data.user_id}.")
+        return {"status": "success", "action": "NO_ACTION_RECOGNIZED"}
+
+    logger.warning(f"Agent returned an unknown action: {action}")
+    return {"status": "no_op", "detail": f"Agent returned an unknown action: {action}"}
 
 # To run this app (from the ai_service directory):
 # 1. Install dependencies: pip install fastapi uvicorn python-dotenv

@@ -198,6 +198,39 @@ The Character module is being implemented to allow users to create and manage RP
     *   `GET /api/v1/characters/me`: Get the authenticated user's character (alternative to by userID).
     *   `POST /api/v1/characters/{characterID}/grant-xp`: (Potentially an internal or admin endpoint, or triggered by other actions) Grant XP to a character.
 
+## 8.3. AI-Driven XP System & Frontend Integration (Session Summary)
+
+This section details the significant architectural changes and bug fixes implemented to create a fully functional, end-to-end feature where a user's journal entries are analyzed by an AI to award experience points, with the results reflected on the frontend.
+
+*   **Core Feature**: When a user saves a journal entry, the content is sent to a Python AI service. The AI analyzes the text for completed tasks and calls back to the Go backend to award the appropriate amount of XP to the user's character. The frontend UI updates to reflect this progress.
+
+*   **Backend Changes (`/backend`)**:
+    *   **New XP Endpoint**: Created a new endpoint `POST /api/v1/users/{userID}/character/xp` to handle XP awards. This is called by the Python AI service.
+    *   **Service & Store Logic**: Implemented the full `handler -> service -> store` chain for the `GrantXP` functionality, including the logic for leveling up a character based on XP thresholds.
+    *   **Database Seeding**: Fixed a critical bug where a user was created without a character. The seeding logic in `main.go` was updated to create a default character for the test user, resolving `404 Not Found` errors when trying to award XP.
+    *   **JSON Field Correction**: Resolved a major frontend bug causing `NaN` values to appear. Added `json:"..."` tags to the `models/character.go` struct to ensure the API response field names (e.g., `xp`, `level`) were lowercase, matching what the frontend TypeScript code expected.
+
+*   **AI Service Changes (`/ai_service`)**:
+    *   **New Agent**: Created a new, specialized agent and prompt (`/prompts/update_character_xp`) focused solely on analyzing text to award XP.
+    *   **Refactored Endpoint**: The main Python service endpoint was changed from `/process-text` to `/agent/update_character` to reflect its new purpose.
+    *   **Backend Callback**: The AI service now performs a callback to the Go backend's `/api/v1/users/{userID}/character/xp` endpoint to grant XP. This decouples the AI's decision-making from the core XP awarding logic.
+    *   **URL Bug Fixes**: Corrected two critical URL bugs:
+        1.  Updated the Go backend's `ai_service.go` to call the new `/agent/update_character` Python endpoint.
+        2.  Updated the Python service's `main.py` to include the `/api/v1` prefix when calling the Go backend.
+
+*   **Frontend Changes (`/frontend`)**:
+    *   **Live Character Page**: The main `/character` page was updated to fetch live data from the `/api/character` route, replacing the previous mock data. It also now uses `localStorage` to track the character's level and trigger a "Level Up!" toast notification.
+    *   **Live Header Widget**: The `CharacterDisplay` widget in the main editor's header was made fully dynamic. The parent `DocumentEditor` component now fetches character data from `/api/character` every 5 seconds and passes the live data down as props. This ensures the user's progress is reflected in near real-time as they write.
+    *   **Bug Fixes & Refactoring**:
+        *   Resolved `NaN` display issues by fixing the backend JSON field names.
+        *   Corrected the data flow by centralizing data fetching in the `DocumentEditor` and making `CharacterDisplay` a simple presentational component, which also resolved `swr` dependency issues.
+
+*   **Debugging Summary**: This session involved extensive debugging, including:
+    *   Fixing multiple `Connection Refused` and `Address Already in Use` errors by correctly managing the lifecycle of the Go and Python services.
+    *   Resolving `404 Not Found` errors by correcting API endpoint paths and fixing the database seeding logic.
+    *   Fixing Go compilation errors caused by function signature mismatches during refactoring.
+    *   Troubleshooting frontend dependency issues (`npm` vs `pnpm`).
+
 ## 9. Deployment
 
 *   **Frontend (Next.js)**: [e.g., Vercel, Netlify, AWS Amplify, Docker container]

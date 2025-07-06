@@ -19,21 +19,20 @@ const (
 
 // Character represents a user's game character.
 type Character struct {
-	ID               uuid.UUID `gorm:"type:uuid;primary_key;"`
-	UserID           uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"` // Foreign key to User
-	User             User      `gorm:"foreignKey:UserID"`            // Belongs to User
-	Name             string    `gorm:"type:varchar(100);not null"`
-	Class            CharacterClass `gorm:"type:varchar(50);not null"`
-	Level            int       `gorm:"default:1;not null"`
-	ExperiencePoints int       `gorm:"default:0;not null"`
-	// Add other RPG elements like Strength, Dexterity, Health, Mana etc. later if needed
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	ID        string    `gorm:"primaryKey" json:"id"`
+	UserID    string    `gorm:"uniqueIndex" json:"user_id"`
+	Name      string    `json:"name"`
+	Bio       string    `json:"bio"`
+	AvatarURL string    `json:"avatar_url"`
+	XP        int       `gorm:"default:0" json:"xp"`
+	Level     int       `gorm:"default:1" json:"level"`
+	Class     string    `json:"class"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // BeforeCreate will set a UUID rather than relying on database default UUID generation.
 func (character *Character) BeforeCreate(tx *gorm.DB) (err error) {
-	character.ID = uuid.New()
+	character.ID = uuid.New().String()
 	return
-} 
+}
