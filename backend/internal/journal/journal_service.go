@@ -82,19 +82,25 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 		return nil, err
 	}
 
-	// After successfully updating, send content to the AI service
+	// After successfully updating, send content to the AI services
+	// Process for XP
 	go func() {
-		aiResponse, err := s.aiService.ProcessText(entry.Content, entry.UserID)
+		_, err := s.aiService.ProcessText(entry.Content, entry.UserID)
 		if err != nil {
-			log.Printf("Failed to process text with AI service: %v", err)
+			log.Printf("Failed to process text with XP agent: %v", err)
 			return
 		}
+		log.Printf("XP agent processed entry %s successfully.", entry.ID)
+	}()
 
-		if aiResponse != nil {
-			log.Printf("AI service processed entry %s, response: %+v", id, aiResponse)
-		} else {
-			log.Printf("AI service processed entry %s with no action returned.", id)
+	// Process for Quests
+	go func() {
+		err := s.aiService.ProcessTextForQuests(entry.Content, entry.UserID)
+		if err != nil {
+			log.Printf("Failed to process text with Quest agent: %v", err)
+			return
 		}
+		log.Printf("Quest agent processed entry %s successfully.", entry.ID)
 	}()
 
 	return entry, nil

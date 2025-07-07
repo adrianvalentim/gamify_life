@@ -12,6 +12,7 @@ import (
 	"github.com/adrianvalentim/gamify_journal/internal/journal"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 	"github.com/adrianvalentim/gamify_journal/internal/platform/database"
+	"github.com/adrianvalentim/gamify_journal/internal/quest"
 	"github.com/adrianvalentim/gamify_journal/internal/user"
 
 	"github.com/go-chi/chi/v5"
@@ -54,17 +55,20 @@ func main() {
 	journalStore := journal.NewStore(dbInstance)
 	characterStore := character.NewStore(dbInstance)
 	folderStore := folder.NewStore(dbInstance)
+	questStore := quest.NewStore(dbInstance)
 
 	aiService := ai.NewAIService()
 	characterService := character.NewService(characterStore)
 	userService := user.NewService(userStore)
 	journalService := journal.NewService(journalStore, aiService, characterService)
 	folderService := folder.NewService(folderStore)
+	questService := quest.NewService(questStore)
 
 	userHandler := user.NewHandler(userService)
 	journalHandler := journal.NewHandler(journalService)
 	characterHandler := character.NewHandler(characterService)
 	folderHandler := folder.NewHandler(folderService)
+	questHandler := quest.NewHandler(questService)
 	aiHandler := ai.NewAIHandler(aiService)
 
 	// Seed data
@@ -75,6 +79,7 @@ func main() {
 		journalHandler.RegisterRoutes(r)
 		characterHandler.RegisterRoutes(r)
 		folderHandler.RegisterRoutes(r)
+		questHandler.RegisterRoutes(r)
 		aiHandler.RegisterRoutes(r)
 	})
 

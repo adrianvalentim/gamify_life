@@ -8,14 +8,14 @@ import json
 import httpx
 import base64
 
-# Import for text agent
-import gemini_config
-
-# Import for image agent - use an alias to avoid name conflicts
-from google import genai as genai_for_images
+# Import for agents
+from text_agent import initialize_text_agent, analyze_text_for_xp
+from quest_agent import initialize_quest_agent, process_text_for_quests, generate_quest_details_from_text
+from image_agent import generate_avatar_image
 
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import List, Optional
 
 # --- Logger Setup ---
 logger = logging.getLogger(__name__)
@@ -30,11 +30,11 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     logger.info("AI Service: Initializing...")
     try:
-        gemini_config.initialize_gemini()
-        # The image agent needs no special initialization as the client is created on the fly
-        logger.info("AI Service: Gemini initialization successful. Service is ready.")
+        initialize_text_agent()
+        initialize_quest_agent()
+        logger.info("AI Service: All agents initialized successfully. Service is ready.")
     except Exception as e:
-        logger.critical(f"AI Service: FATAL ERROR during Gemini initialization: {e}")
+        logger.critical(f"AI Service: FATAL ERROR during agent initialization: {e}")
     yield
     logger.info("AI Service: Shutting down...")
 
@@ -50,12 +50,16 @@ app.add_middleware(
 )
 
 # --- Pydantic Models ---
-class ParagraphInput(BaseModel):
-    paragraph: str
+class ProcessTextRequest(BaseModel):
     user_id: str
+    entry_text: str
 
 class AvatarInput(BaseModel):
     prompt: str
+
+class QuestDetailsInput(BaseModel):
+    title: str
+    description: str
 
 # --- Backend Communication ---
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1")
@@ -78,58 +82,72 @@ async def update_character_xp_in_backend(user_id: str, xp_amount: int):
         logger.error(f"An unexpected error occurred during XP update for user {user_id}: {e}")
         return None
 
-# --- AI Agents ---
-async def update_character_agent(paragraph: str) -> dict:
-    """
-    Analyzes the user's paragraph to award XP using a specialized agent.
-    """
-    if gemini_config.gemini is None:
-        raise HTTPException(status_code=503, detail="AI Service is not initialized.")
-
+async def get_active_quests_from_backend(user_id: str) -> list:
+    """Fetches active quests for a user from the Go backend."""
     try:
-        prompt_path = Path(__file__).parent / "prompts" / "update_character_xp"
-        with open(prompt_path, "r") as f:
-            prompt_template = f.read()
-
-        full_prompt = f"{prompt_template}\n\nUser's paragraph:\n\"{paragraph}\""
-        
-        response = gemini_config.gemini.generate_content(full_prompt)
-        
-        cleaned_response = response.text.strip().replace('`', '')
-        if cleaned_response.startswith("json"):
-            cleaned_response = cleaned_response[4:].strip()
-            
-        return json.loads(cleaned_response)
-
-    except FileNotFoundError:
-        logger.error(f"Prompt file not found at {prompt_path}")
-        raise HTTPException(status_code=500, detail="Agent prompt file not found.")
-    except json.JSONDecodeError:
-        logger.error(f"Failed to decode JSON from AI response: {response.text}")
-        raise HTTPException(status_code=500, detail="Invalid format in AI response.")
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{BACKEND_URL}/quests/user/{user_id}")
+            response.raise_for_status()
+            logger.info(f"Successfully fetched active quests for user {user_id}.")
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"Error calling backend to get quests for user {user_id}: {e}")
+        return []
     except Exception as e:
-        logger.error(f"Error in update_character_agent: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while processing with the agent.")
+        logger.error(f"An unexpected error occurred during quest fetching for user {user_id}: {e}")
+        return []
+
+async def create_quest_in_backend(user_id: str, data: dict):
+    """Calls the backend to create a new quest."""
+    payload = {**data, "userId": user_id}
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{BACKEND_URL}/quests", json=payload)
+            response.raise_for_status()
+            logger.info(f"Successfully created quest for user {user_id}.")
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"Error calling backend to create quest for user {user_id}: {e}")
+        return None
+
+async def update_quest_in_backend(quest_id: str, data: dict):
+    """Calls the backend to update an existing quest."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.put(f"{BACKEND_URL}/quests/{quest_id}", json=data)
+            response.raise_for_status()
+            logger.info(f"Successfully updated quest {quest_id}.")
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"Error calling backend to update quest {quest_id}: {e}")
+        return None
+
+async def complete_quest_in_backend(quest_id: str):
+    """Calls the backend to mark a quest as complete."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{BACKEND_URL}/quests/{quest_id}/complete")
+            response.raise_for_status()
+            logger.info(f"Successfully completed quest {quest_id}.")
+            return response.json()
+    except httpx.RequestError as e:
+        logger.error(f"Error calling backend to complete quest {quest_id}: {e}")
+        return None
 
 # --- API Endpoints ---
 @app.get("/")
 def read_root():
-    if gemini_config.gemini is None:
-        raise HTTPException(status_code=503, detail="Service Unavailable: AI Model is not initialized.")
     return {"message": "Gamify Life AI Service is running!"}
 
-@app.post("/agent/update_character")
-async def agent_update_character(input_data: ParagraphInput):
-    logger.info(f"Received paragraph from user {input_data.user_id} for character update.")
+@app.post("/agent/update_character_xp")
+async def agent_update_character_xp(input_data: ProcessTextRequest):
+    logger.info(f"Received text from user {input_data.user_id} for XP analysis.")
     
-    agent_response = await update_character_agent(input_data.paragraph)
+    agent_response = await analyze_text_for_xp(input_data.entry_text)
     action = agent_response.get("action")
     
     if action == "AWARD_XP":
         tool_calls = agent_response.get("tool_calls", [])
-        if not tool_calls:
-            return {"status": "no_op", "detail": "Agent decided to award XP but provided no tool call."}
-
         xp_call = next((call for call in tool_calls if call.get("name") == "update_xp"), None)
         
         if xp_call:
@@ -138,50 +156,59 @@ async def agent_update_character(input_data: ParagraphInput):
                 logger.info(f"Agent decided to award {xp_amount} XP to user {input_data.user_id}.")
                 await update_character_xp_in_backend(input_data.user_id, xp_amount)
                 return {"status": "success", "action": "AWARD_XP", "xp_awarded": xp_amount}
-            else:
-                return {"status": "no_op", "detail": "Agent provided invalid 'xp_amount'."}
 
-    elif action == "NO_ACTION_RECOGNIZED":
-        logger.info(f"Agent recognized no action for user {input_data.user_id}.")
-        return {"status": "success", "action": "NO_ACTION_RECOGNIZED"}
+    logger.info(f"XP Agent recognized no action for user {input_data.user_id}.")
+    return {"status": "success", "action": "NO_ACTION_RECOGNIZED"}
 
-    logger.warning(f"Agent returned an unknown action: {action}")
-    return {"status": "no_op", "detail": f"Agent returned an unknown action: {action}"}
+@app.post("/agent/update_quests")
+async def agent_update_quests(input_data: ProcessTextRequest):
+    logger.info(f"Received text from user {input_data.user_id} for quest analysis.")
+    
+    active_quests = await get_active_quests_from_backend(input_data.user_id)
+    
+    agent_response = await process_text_for_quests(input_data.entry_text, active_quests)
+    action = agent_response.get("action")
+    data = agent_response.get("data")
 
+    if action == "CREATE" and data:
+        logger.info(f"Quest Agent decided to CREATE a quest for user {input_data.user_id}.")
+        await create_quest_in_backend(input_data.user_id, data)
+        return {"status": "success", "action": "CREATE"}
+    
+    elif action == "UPDATE" and data and "questId" in data:
+        logger.info(f"Quest Agent decided to UPDATE quest {data['questId']}.")
+        await update_quest_in_backend(data["questId"], {"description": data.get("description")})
+        return {"status": "success", "action": "UPDATE"}
+
+    elif action == "COMPLETE" and data and "questId" in data:
+        logger.info(f"Quest Agent decided to COMPLETE quest {data['questId']}.")
+        await complete_quest_in_backend(data["questId"])
+        return {"status": "success", "action": "COMPLETE"}
+
+    logger.info(f"Quest Agent recognized no action for user {input_data.user_id}.")
+    return {"status": "success", "action": "NO_ACTION"}
+
+@app.post("/agent/generate_quest_details")
+async def agent_generate_quest_details(input_data: QuestDetailsInput):
+    logger.info(f"Received request to generate details for quest: {input_data.title}")
+    try:
+        details = await generate_quest_details_from_text(input_data.title, input_data.description)
+        return details
+    except Exception as e:
+        logger.error(f"Error in generate_quest_details endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-avatar")
 async def generate_avatar(input_data: AvatarInput):
     """
-    Generates an avatar image using the 'google-genai' library, keeping it
-    separate from the text processing agent.
+    Generates an avatar image using the image_agent.
     """
     logger.info(f"Received request to generate avatar with prompt: {input_data.prompt}")
     try:
-        # This client is created on the fly and uses the google-genai library
-        # It assumes the API key is loaded into the environment by the lifespan manager
-        client = genai_for_images.Client()
-        
-        result = client.models.generate_images(
-            model="models/imagen-4.0-generate-preview-06-06",
-            prompt=input_data.prompt,
-            config=dict(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-                person_generation="ALLOW_ADULT",
-                aspect_ratio="1:1",
-            ),
-        )
-
-        if not result.generated_images:
-            raise HTTPException(status_code=500, detail="No images were generated.")
-
-        image_bytes = result.generated_images[0].image.image_bytes
-        encoded_image = base64.b64encode(image_bytes).decode('utf-8')
-
-        return {"avatar_url": f"data:image/jpeg;base64,{encoded_image}"}
-
+        image_data_url = await generate_avatar_image(input_data.prompt)
+        return {"avatar_url": image_data_url}
     except Exception as e:
-        logger.error(f"Error in generate_avatar: {e}")
+        logger.error(f"Error in generate_avatar endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"An error occurred during image generation: {e}")
 
 # To run this app (from the ai_service directory):

@@ -18,7 +18,7 @@ def initialize_image_agent():
     logger.info("Image Agent ready.")
 
 
-async def generate_avatar(prompt: str) -> str:
+async def generate_avatar_image(prompt: str) -> str:
     """
     Generates an avatar image using the 'google-genai' library.
     """
@@ -46,5 +46,5 @@ async def generate_avatar(prompt: str) -> str:
         return f"data:{mime_type};base64,{b64_data}"
 
     except Exception as e:
-        logger.error(f"Error in generate_avatar: {e}")
+        logger.error(f"Error in generate_avatar_image: {e}")
         raise 

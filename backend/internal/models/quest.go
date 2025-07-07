@@ -1,38 +1,39 @@
 package models
 
-import "time"
+import (
+	"time"
 
-// Task represents a single task that might be part of a Quest or a standalone activity.
-// Note: If tasks are only ever part of Quests, this could be nested or defined locally to Quest-related packages.
-// For now, defining it here for potential broader use or if quests have complex task structures.
-type Task struct {
-	ID          string `json:"id"` // Unique identifier for the task, could be unique within a Quest or globally if tasks are reusable.
-	Description string `json:"description"`
-	// TargetValue defines what needs to be achieved for this task (e.g., count of actions, specific state).
-	TargetValue int `json:"target_value"`
-	// ActionType could be a string like "write_entry", "add_mood", "complete_streak_X_days"
-	// This helps the gamification service know what event to listen for or what state to check.
-	ActionType string `json:"action_type,omitempty"`
-	// Points awarded for completing this specific task, if quests are granular.
-	Points int `json:"points,omitempty"`
-}
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// QuestStatus defines the possible statuses of a quest.
+type QuestStatus string
+
+const (
+	// QuestStatusInProgress means the quest has been started by the user.
+	QuestStatusInProgress QuestStatus = "in_progress"
+	// QuestStatusCompleted means the user has completed all objectives of the quest.
+	QuestStatusCompleted QuestStatus = "completed"
+)
 
 // Quest represents a challenge or a set of tasks users can undertake for rewards.
-// It corresponds to the Quest class in Class.md.
+// This model is simplified to be user-specific and managed by the AI agent.
 type Quest struct {
-	ID           string    `json:"id" gorm:"primaryKey"`
-	Title        string    `json:"title"`
-	Description  string    `json:"description"`
-	Tasks        []Task    `json:"tasks" gorm:"type:jsonb"` // Storing tasks as JSONB. Assumes DB support (like PostgreSQL).
-	RewardPoints int       `json:"reward_points,omitempty"` // Points awarded upon completing the entire quest.
-	// RewardBadgeID could link to a separate Badges model/table if you have visual badges.
-	RewardBadgeID string    `json:"reward_badge_id,omitempty"`
-	IsRecurring  bool      `json:"is_recurring"`
-	IsActive     bool      `json:"is_active" gorm:"default:true"` // To administratively enable/disable quests.
-	StartDate    time.Time `json:"start_date,omitempty"`          // When the quest becomes available.
-	ExpiryDate   time.Time `json:"expiry_date,omitempty"`          // When the quest is no longer available.
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID               string      `gorm:"primaryKey" json:"id"`
+	UserID           string      `gorm:"index" json:"userId"`
+	Title            string      `json:"title"`
+	Description      string      `json:"description"`
+	Status           QuestStatus `gorm:"default:'in_progress'" json:"status"`
+	ExperienceReward int         `json:"experienceReward"`
+	CreatedAt        time.Time   `json:"createdAt"`
+	UpdatedAt        time.Time   `json:"updatedAt"`
+}
+
+// BeforeCreate will set a UUID rather than relying on database default UUID generation.
+func (quest *Quest) BeforeCreate(tx *gorm.DB) (err error) {
+	quest.ID = uuid.New().String()
+	return
 }
 
 /*
@@ -55,4 +56,4 @@ type UserQuestProgress struct {
 This `UserQuestProgress` model would store which tasks a user has progressed on for a given quest
 and the overall status of the quest for that user.
 The `Quest.Tasks` field would serve as the definition of the quest, while `UserQuestProgress.TasksProgress` would track the instance data.
-*/ 
+*/

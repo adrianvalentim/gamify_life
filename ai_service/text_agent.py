@@ -4,6 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import google.generativeai as genai
 import google.ai.generativelanguage as glm
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +76,29 @@ async def analyze_text_for_xp(paragraph: str) -> dict:
         
         response = await gemini_model.generate_content_async(full_prompt)
 
-        if response.candidates and response.candidates[0].content.parts and response.candidates[0].content.parts[0].function_call:
-            function_call = response.candidates[0].content.parts[0].function_call
-            if function_call.name == "update_xp":
-                xp_amount = int(function_call.args["xp_amount"])
-                return {
-                    "action": "AWARD_XP",
-                    "tool_calls": [{
-                        "name": "update_xp",
-                        "args": {"xp_amount": xp_amount}
-                    }]
-                }
-        
+        try:
+            # The model should return a JSON string, try to parse it
+            response_text = response.text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:-4] #
+            
+            response_json = json.loads(response_text)
+
+            if response_json.get("action") == "AWARD_XP":
+                tool_calls = response_json.get("tool_calls", [])
+                xp_call = next((call for call in tool_calls if call.get("name") == "update_xp"), None)
+                if xp_call and "args" in xp_call and "xp_amount" in xp_call["args"]:
+                    xp_amount = int(xp_call["args"]["xp_amount"])
+                    # Return a dictionary that matches the structure expected by main.py
+                    return {
+                        "action": "AWARD_XP",
+                        "tool_calls": [{"name": "update_xp", "args": {"xp_amount": xp_amount}}]
+                    }
+        except (json.JSONDecodeError, IndexError, AttributeError) as e:
+            logger.warning(f"Could not parse JSON from model response for XP agent: {e}. Response was: {response.text}")
+            # Fall through to NO_ACTION if parsing fails
+            pass
+
         return {"action": "NO_ACTION_RECOGNIZED", "tool_calls": []}
 
     except Exception as e:

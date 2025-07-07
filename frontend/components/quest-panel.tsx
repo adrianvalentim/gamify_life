@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useQuests } from "@/hooks/use-quests"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Progress } from "@/components/ui/progress"
-import { X, CheckCircle2, Clock, Star } from "lucide-react"
+import { X, CheckCircle2, Star, Loader2, AlertTriangle } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface QuestPanelProps {
   onClose: () => void
@@ -13,49 +13,85 @@ interface QuestPanelProps {
 
 export function QuestPanel({ onClose }: QuestPanelProps) {
   const { translations } = useLanguage()
-  
-  // Mock quests data - in a real app this would come from a database
-  const [quests, setQuests] = useState([
-    {
-      id: "q1",
-      title: "The Scholar's Path",
-      description: "Write 500 words on any topic",
-      reward: "50 XP",
-      progress: 30,
-      active: true,
-      difficulty: "easy",
-    },
-    {
-      id: "q2",
-      title: "Daily Scribe",
-      description: "Write in your journal for 3 consecutive days",
-      reward: "100 XP",
-      progress: 66,
-      active: true,
-      difficulty: "medium",
-    },
-    {
-      id: "q3",
-      title: "World Builder",
-      description: "Create a detailed description of a fantasy location",
-      reward: "75 XP + Magic Quill item",
-      progress: 0,
-      active: false,
-      difficulty: "hard",
-    },
-    {
-      id: "q4",
-      title: "Character Creator",
-      description: "Develop a character with backstory, traits, and goals",
-      reward: "120 XP",
-      progress: 0,
-      active: false,
-      difficulty: "hard",
-    },
-  ])
+  const { quests, isLoading, error } = useQuests()
 
-  const toggleQuestActive = (questId: string) => {
-    setQuests(quests.map((quest) => (quest.id === questId ? { ...quest, active: !quest.active } : quest)))
+  const inProgressQuests = quests.filter((q) => q.status === "in_progress")
+  const completedQuests = quests.filter((q) => q.status === "completed")
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="p-4 space-y-4">
+          <Skeleton className="h-8 w-1/3" />
+          <div className="space-y-2">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+          <Skeleton className="h-8 w-1/3 mt-4" />
+          <div className="space-y-2">
+            <Skeleton className="h-20 w-full" />
+          </div>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="p-4 flex flex-col items-center justify-center h-full text-center">
+          <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+          <h3 className="font-bold">{translations.errorOccurred}</h3>
+          <p className="text-sm text-muted-foreground">{error.message}</p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="p-4 space-y-6">
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm flex items-center gap-1">
+            <Star className="h-4 w-4 text-amber-500" />
+            {translations.inProgressQuests}
+          </h3>
+          {inProgressQuests.length > 0 ? (
+            inProgressQuests.map((quest) => (
+              <div key={quest.id} className="border rounded-md p-3 space-y-2 bg-muted/30">
+                <h4 className="font-medium">{quest.title}</h4>
+                <p className="text-sm text-muted-foreground">{quest.description}</p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-amber-500 font-medium">
+                    {translations.reward}: {quest.experienceReward} XP
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground p-3 text-center">{translations.noActiveQuests}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="font-medium text-sm flex items-center gap-1">
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+            {translations.completedQuests}
+          </h3>
+          {completedQuests.length > 0 ? (
+            completedQuests.map((quest) => (
+              <div key={quest.id} className="border rounded-md p-3 space-y-2 opacity-70">
+                <h4 className="font-medium line-through">{quest.title}</h4>
+                <p className="text-sm text-muted-foreground">{quest.description}</p>
+                 <div className="flex items-center justify-between text-xs">
+                  <span className="text-green-500 font-medium">
+                    {translations.reward}: {quest.experienceReward} XP
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+             <p className="text-sm text-muted-foreground p-3 text-center">{translations.noCompletedQuests}</p>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -68,85 +104,7 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
       </div>
 
       <ScrollArea className="h-[calc(100%-60px)]">
-        <div className="p-4 space-y-4">
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm flex items-center gap-1">
-              <Star className="h-4 w-4 text-amber-500" />
-              {translations.activeQuests}
-            </h3>
-
-            {quests
-              .filter((q) => q.active)
-              .map((quest) => (
-                <div key={quest.id} className="border rounded-md p-3 space-y-2 bg-muted/30">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">{quest.title}</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => toggleQuestActive(quest.id)}
-                    >
-                      {translations.abandon}
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{quest.description}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-amber-500 font-medium">{translations.reward}: {quest.reward}</span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {translations.progress}: {quest.progress}%
-                    </span>
-                  </div>
-                  <Progress value={quest.progress} className="h-1.5" />
-                </div>
-              ))}
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="font-medium text-sm">{translations.availableQuests}</h3>
-
-            {quests
-              .filter((q) => !q.active)
-              .map((quest) => (
-                <div key={quest.id} className="border rounded-md p-3 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">{quest.title}</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700"
-                      onClick={() => toggleQuestActive(quest.id)}
-                    >
-                      {translations.accept}
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{quest.description}</p>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-amber-500 font-medium">{translations.reward}: {quest.reward}</span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full ${
-                        quest.difficulty === "easy"
-                          ? "bg-green-100 text-green-700"
-                          : quest.difficulty === "medium"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {translations[quest.difficulty as keyof typeof translations]}
-                    </span>
-                  </div>
-                </div>
-              ))}
-          </div>
-
-          <div className="pt-4 border-t">
-            <Button className="w-full bg-amber-500 hover:bg-amber-600">
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {translations.completeDailyQuest}
-            </Button>
-          </div>
-        </div>
+        {renderContent()}
       </ScrollArea>
     </div>
   )

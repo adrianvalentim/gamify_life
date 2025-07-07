@@ -1,131 +1,141 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Progress } from "@/components/ui/progress"
-import { Skeleton } from "@/components/ui/skeleton"
-import { X, Sparkles, Scroll, BookOpen, MapPin, Swords, MessageSquare, Compass, Award } from "lucide-react"
-import { useLanguage } from "@/hooks/use-language"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  X,
+  CheckCircle2,
+  Star,
+  AlertTriangle,
+  Scroll,
+  BookOpen,
+  Award,
+  Compass,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
+import { useLanguage } from "@/hooks/use-language";
+import { useQuests, Quest } from "@/hooks/use-quests";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { useQuestDetails } from "@/hooks/use-quest-details";
 
 interface QuestInfoPanelProps {
-  onClose: () => void
-  characterClass: string
-  level: number
+  onClose: () => void;
 }
 
-export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPanelProps) {
-  const { translations } = useLanguage()
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<"quest" | "lore" | "rewards">("quest")
-  const [questData, setQuestData] = useState<{
-    title: string
-    description: string
-    objective: string
-    progress: number
-    lore: string
-    nextSteps: string[]
-    rewards: {
-      xp: number
-      items: string[]
-      gold: number
+export function QuestInfoPanel({ onClose }: QuestInfoPanelProps) {
+  const { translations } = useLanguage();
+  const { quests, isLoading: isLoadingQuests, error: questsError } = useQuests();
+  const [activeTab, setActiveTab] = useState<"quest" | "lore" | "rewards">("quest");
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+
+  const {
+    details: questDetails,
+    isLoading: isLoadingDetails,
+    error: detailsError,
+  } = useQuestDetails(selectedQuest);
+
+  const handleQuestSelection = (quest: Quest) => {
+    if (selectedQuest?.id === quest.id) {
+      setSelectedQuest(null); // Allow deselecting
+    } else {
+      setSelectedQuest(quest);
+      setActiveTab("lore"); // Switch to lore tab on new selection
     }
-  } | null>(null)
+  };
 
-  // Simulate API call to LLM for quest information
-  useEffect(() => {
-    const fetchQuestInfo = async () => {
-      setLoading(true)
-
-      try {
-        // In a real implementation, this would be an API call to your LLM
-        // const response = await fetch('/api/generate-quest', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify({ characterClass, level })
-        // })
-        // const data = await response.json()
-
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-
-        // Mock data that would come from the LLM
-        const mockQuestData = {
-          title:
-            characterClass === "warrior"
-              ? "The Crimson Blade"
-              : characterClass === "mage"
-                ? "Arcane Mysteries"
-                : "The Silent Hunt",
-          description: `As a ${level > 5 ? "seasoned" : "novice"} ${characterClass}, you've been tasked with ${
-            characterClass === "warrior"
-              ? "defeating the bandits terrorizing the northern villages"
-              : characterClass === "mage"
-                ? "investigating the strange magical anomalies in the ancient tower"
-                : "tracking down the elusive shadow beast in the western woods"
-          }.`,
-          objective:
-            characterClass === "warrior"
-              ? "Defeat the bandit leader and recover the stolen artifacts"
-              : characterClass === "mage"
-                ? "Discover the source of the magical disturbances and contain it"
-                : "Track and capture the shadow beast without harming it",
-          progress: Math.floor(Math.random() * 70) + 10,
-          lore: `The ${
-            characterClass === "warrior"
-              ? "Crimson Blade is an ancient sword said to have been forged in dragon fire. Legend says it was wielded by the hero Artorius during the Great War against the demon hordes. After his death, the sword was lost for centuries until rumors of its reappearance began to surface in the northern villages."
-              : characterClass === "mage"
-                ? "Arcane Tower was once the center of magical research for the kingdom. The greatest mages of the realm gathered there to study the fundamental forces of magic. However, a catastrophic experiment caused the tower to be abandoned nearly a century ago. Recently, strange lights and sounds have been reported coming from the ruins."
-                : "Shadow Beasts are rare creatures that only appear during specific lunar phases. They are not inherently malevolent, but their presence often disrupts the natural balance of the areas they inhabit. Scholars believe they are manifestations of ancient nature spirits rather than flesh and blood creatures."
-          } Many have sought to ${
-            characterClass === "warrior"
-              ? "wield its power, but the blade is said to choose its wielder. Those deemed unworthy who attempt to use it are consumed by its crimson flames."
-              : characterClass === "mage"
-                ? "unlock its secrets, but the complex magical wards and traps left behind by the original mages have proven deadly to amateur explorers."
-                : "study these elusive creatures, but their ephemeral nature makes them nearly impossible to track by conventional means."
-          }`,
-          nextSteps: [
-            characterClass === "warrior"
-              ? "Gather information about the bandit hideout from the village elder"
-              : characterClass === "mage"
-                ? "Research the tower's history in the royal library"
-                : "Find tracks or signs of the beast's passage near the western woods",
-            characterClass === "warrior"
-              ? "Acquire better armor before confronting the bandits"
-              : characterClass === "mage"
-                ? "Prepare protective wards against unknown magical forces"
-                : "Set up traps or lures to attract the beast",
-            "Speak with the local villagers for more information",
-            `Return to the guild master when you've made progress`,
-          ],
-          rewards: {
-            xp: 150 + level * 25,
-            items: [
-              characterClass === "warrior"
-                ? "Crimson Blade (Legendary Sword)"
-                : characterClass === "mage"
-                  ? "Staff of Arcane Secrets (Rare Staff)"
-                  : "Shadow Cloak (Uncommon Armor)",
-              "Potion of Healing",
-              `${characterClass} Emblem`,
-            ],
-            gold: 50 + level * 10,
-          },
-        }
-
-        setQuestData(mockQuestData)
-      } catch (error) {
-        console.error("Error fetching quest information:", error)
-      } finally {
-        setLoading(false)
-      }
+  const renderQuestList = () => {
+    if (isLoadingQuests && !quests.length) {
+      return (
+        <div className="p-4 space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      );
+    }
+    if (questsError) {
+      return (
+        <div className="p-4 text-center">
+          <AlertTriangle className="mx-auto h-8 w-8 text-red-500" />
+          <p className="mt-2 text-sm text-muted-foreground">{questsError.message}</p>
+        </div>
+      );
+    }
+    if (quests.length === 0) {
+      return <p className="p-4 text-center text-sm text-muted-foreground">{translations.noQuestsAvailable}</p>;
     }
 
-    fetchQuestInfo()
-  }, [characterClass, level])
+    const inProgressQuests = quests.filter((q) => q.status === "in_progress");
+    const completedQuests = quests.filter((q) => q.status === "completed");
+
+    return (
+      <div className="p-4 space-y-6">
+        {inProgressQuests.length > 0 && (
+          <div>
+            <h3 className="font-medium text-sm mb-2 flex items-center gap-1">
+              <Star className="h-4 w-4 text-amber-500" />
+              {translations.inProgressQuests}
+            </h3>
+            {inProgressQuests.map((quest) => (
+              <div
+                key={quest.id}
+                className={cn(
+                  "border rounded-md p-3 space-y-2 cursor-pointer hover:bg-muted/50",
+                  selectedQuest?.id === quest.id && "bg-amber-100/50 border-amber-500"
+                )}
+                onClick={() => handleQuestSelection(quest)}
+              >
+                <h4 className="font-medium">{quest.title}</h4>
+                <p className="text-sm text-muted-foreground">{quest.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {completedQuests.length > 0 && (
+          <div>
+            <h3 className="font-medium text-sm mb-2 flex items-center gap-1">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              {translations.completedQuests}
+            </h3>
+            {completedQuests.map((quest) => (
+               <div key={quest.id} className="border rounded-md p-3 opacity-60">
+                 <h4 className="font-medium line-through">{quest.title}</h4>
+               </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  const renderDetailsTab = (type: "lore" | "rewards") => {
+    if (!selectedQuest) {
+      return <p className="p-4 text-center text-sm text-muted-foreground">Select a quest to view its {type}.</p>;
+    }
+    if (isLoadingDetails) {
+      return (
+        <div className="p-4 space-y-4">
+          <Skeleton className="h-6 w-1/2" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-4 w-full" />
+        </div>
+      );
+    }
+    if (detailsError) {
+      return <p className="p-4 text-center text-sm text-red-500">{detailsError.message}</p>;
+    }
+    return (
+      <div className="p-4 space-y-4">
+        <h3 className="font-bold text-lg text-amber-600">{selectedQuest.title}</h3>
+        <p className="text-sm leading-relaxed">{type === "lore" ? questDetails?.lore : questDetails?.rewards}</p>
+      </div>
+    );
+  };
 
   return (
-    <div className="h-full w-[350px] bg-background border-l shadow-lg z-20 flex flex-col transition-all duration-300 ease-in-out">
+    <div className="h-full w-[350px] bg-background border-l shadow-lg z-20 flex flex-col">
       <div className="flex items-center justify-between p-4 border-b">
         <h2 className="font-bold text-lg flex items-center gap-2">
           <Scroll className="h-5 w-5 text-amber-500" />
@@ -139,7 +149,7 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
       <div className="flex border-b">
         <Button
           variant="ghost"
-          className={`flex-1 rounded-none ${activeTab === "quest" ? "border-b-2 border-amber-500" : ""}`}
+          className={cn("flex-1 rounded-none", activeTab === "quest" && "border-b-2 border-amber-500")}
           onClick={() => setActiveTab("quest")}
         >
           <Compass className="h-4 w-4 mr-2" />
@@ -147,16 +157,18 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
         </Button>
         <Button
           variant="ghost"
-          className={`flex-1 rounded-none ${activeTab === "lore" ? "border-b-2 border-amber-500" : ""}`}
+          className={cn("flex-1 rounded-none", activeTab === "lore" && "border-b-2 border-amber-500")}
           onClick={() => setActiveTab("lore")}
+          disabled={!selectedQuest}
         >
           <BookOpen className="h-4 w-4 mr-2" />
           {translations.lore}
         </Button>
         <Button
           variant="ghost"
-          className={`flex-1 rounded-none ${activeTab === "rewards" ? "border-b-2 border-amber-500" : ""}`}
+          className={cn("flex-1 rounded-none", activeTab === "rewards" && "border-b-2 border-amber-500")}
           onClick={() => setActiveTab("rewards")}
+          disabled={!selectedQuest}
         >
           <Award className="h-4 w-4 mr-2" />
           {translations.rewards}
@@ -164,143 +176,10 @@ export function QuestInfoPanel({ onClose, characterClass, level }: QuestInfoPane
       </div>
 
       <ScrollArea className="flex-grow">
-        <div className="p-4 space-y-6">
-          {loading ? (
-            <>
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-1/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-5 w-1/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            </>
-          ) : questData ? (
-            <>
-              {activeTab === "quest" && (
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <h3 className="font-bold text-xl text-amber-600">{questData.title}</h3>
-                    <p className="text-sm text-muted-foreground">{questData.description}</p>
-
-                    <div className="bg-muted/50 rounded-md p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Swords className="h-4 w-4 text-amber-500" />
-                        <h4 className="font-medium text-sm">{translations.objective}</h4>
-                      </div>
-                      <p className="text-sm">{questData.objective}</p>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span>{translations.progress}</span>
-                          <span>{questData.progress}%</span>
-                        </div>
-                        <Progress value={questData.progress} className="h-1.5" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-amber-500" />
-                      <h4 className="font-medium">{translations.nextSteps}</h4>
-                    </div>
-                    <ul className="space-y-2">
-                      {questData.nextSteps.map((step, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                          <span className="bg-amber-100 text-amber-800 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            {index + 1}
-                          </span>
-                          <span>{step}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="pt-4 border-t mt-4">
-                    <Button className="w-full bg-amber-500 hover:bg-amber-600">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      {translations.askForGuidance}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "lore" && (
-                <div className="space-y-4">
-                  <h3 className="font-bold text-xl text-amber-600">{questData.title} - {translations.lore}</h3>
-                  <div className="bg-muted/30 rounded-md p-4 border border-amber-200/20">
-                    <p className="text-sm leading-relaxed">{questData.lore}</p>
-                  </div>
-
-                  <div className="bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300 p-4 rounded-md border border-amber-200 mt-6">
-                    <h4 className="font-medium mb-2 flex items-center gap-2">
-                      <Sparkles className="h-4 w-4" />
-                      {translations.scribesNote}
-                    </h4>
-                    <p className="text-sm italic">
-                      {translations.continueWriting}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "rewards" && (
-                <div className="space-y-4">
-                  <h3 className="font-bold text-xl text-amber-600">Quest Rewards</h3>
-
-                  <div className="bg-muted/50 rounded-md p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Experience</span>
-                      <span className="text-green-600 font-bold">{questData.rewards.xp} XP</span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Items</h4>
-                      <ul className="space-y-2">
-                        {questData.rewards.items.map((item, index) => (
-                          <li key={index} className="flex items-center gap-2 text-sm bg-background/80 p-2 rounded-md">
-                            <div className="h-8 w-8 bg-amber-100 rounded-md flex items-center justify-center text-amber-800">
-                              {index === 0 ? "★" : "✦"}
-                            </div>
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Gold</span>
-                      <span className="text-amber-600 font-bold">{questData.rewards.gold} coins</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t mt-4">
-                    <Button className="w-full bg-amber-500 hover:bg-amber-600">
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Generate New Quest
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-40">
-              <p className="text-muted-foreground">Failed to load quest information</p>
-            </div>
-          )}
-        </div>
+        {activeTab === "quest" && renderQuestList()}
+        {activeTab === "lore" && renderDetailsTab("lore")}
+        {activeTab === "rewards" && renderDetailsTab("rewards")}
       </ScrollArea>
     </div>
-  )
-}
-
+  );
+} 

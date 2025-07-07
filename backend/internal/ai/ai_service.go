@@ -6,12 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
-)
-
-const (
-	// The AI service now runs on port 8002
-	aiServiceURL = "http://localhost:8002/agent/update_character"
 )
 
 // AIService handles AI-related business logic.
@@ -22,12 +18,15 @@ type AIService struct {
 
 // NewAIService creates a new instance of AIService.
 func NewAIService() *AIService {
+	aiServiceURL := os.Getenv("AI_SERVICE_URL")
+	if aiServiceURL == "" {
+		aiServiceURL = "http://localhost:8002"
+	}
 	return &AIService{
 		HttpClient: &http.Client{
-			Timeout: 60 * time.Second, // Increased timeout for image generation
+			Timeout: 60 * time.Second,
 		},
-		// This BaseURL is for other endpoints like avatar generation
-		BaseURL: "http://localhost:8002",
+		BaseURL: aiServiceURL,
 	}
 }
 
@@ -52,43 +51,66 @@ type AIResponse struct {
 	} `json:"suggested_actions"`
 }
 
-// ProcessText sends text to the AI service for processing (e.g., generating quests).
+// ProcessText sends text to the AI service for XP analysis.
 func (s *AIService) ProcessText(text, userID string) (*AIResponse, error) {
 	requestBody, err := json.Marshal(map[string]string{
-		"paragraph": text,
-		"user_id":   userID,
+		"entry_text": text,
+		"user_id":    userID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, fmt.Errorf("failed to marshal request body for xp agent: %w", err)
 	}
 
-	// Use the constant for the URL
-	req, err := http.NewRequest("POST", aiServiceURL, bytes.NewBuffer(requestBody))
+	req, err := http.NewRequest("POST", s.BaseURL+"/agent/update_character_xp", bytes.NewBuffer(requestBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request for xp agent: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := s.HttpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request to AI service: %w", err)
+		return nil, fmt.Errorf("failed to make request to xp agent: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("AI service returned an error: %s - %s", resp.Status, string(bodyBytes))
+		return nil, fmt.Errorf("xp agent returned an error: %s - %s", resp.Status, string(bodyBytes))
 	}
 
-	var result AIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		if err == io.EOF {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to decode response from AI service: %w", err)
+	// The response for this endpoint is for logging/confirmation, not complex data.
+	// We can return nil for the AIResponse as the old structure is no longer used.
+	return nil, nil
+}
+
+// ProcessTextForQuests sends text to the AI service for quest processing.
+func (s *AIService) ProcessTextForQuests(text, userID string) error {
+	requestBody, err := json.Marshal(map[string]string{
+		"entry_text": text,
+		"user_id":    userID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body for quest agent: %w", err)
 	}
 
-	return &result, nil
+	req, err := http.NewRequest("POST", s.BaseURL+"/agent/update_quests", bytes.NewBuffer(requestBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request for quest agent: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.HttpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request to quest agent: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("quest agent returned an error: %s - %s", resp.Status, string(bodyBytes))
+	}
+
+	return nil
 }
 
 // GenerateAvatar proxies the request to the Python AI service.

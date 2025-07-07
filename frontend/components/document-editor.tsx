@@ -99,8 +99,6 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
         <div className="w-[350px] flex-shrink-0">
           <QuestInfoPanel
             onClose={() => setShowQuestInfo(false)}
-            characterClass={character.class}
-            level={character.level}
           />
         </div>
       )}

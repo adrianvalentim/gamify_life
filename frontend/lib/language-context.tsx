@@ -43,16 +43,13 @@ const translationMap: Record<Language, Record<string, string>> = {
     
     // Quest Panel
     "quests": "Quests",
-    "activeQuests": "Active Quests",
-    "availableQuests": "Available Quests",
-    "abandon": "Abandon",
-    "accept": "Accept",
+    "inProgressQuests": "In-Progress Quests",
+    "completedQuests": "Completed Quests",
+    "noActiveQuests": "No active quests. Keep writing to discover new ones!",
+    "noCompletedQuests": "No quests completed yet.",
     "reward": "Reward",
-    "progress": "Progress",
-    "easy": "Easy",
-    "medium": "Medium",
-    "hard": "Hard",
-    "completeDailyQuest": "Complete Daily Quest",
+    "errorOccurred": "An Error Occurred",
+    "noQuestsAvailable": "No quests available. Keep writing in your journal to discover new adventures!",
 
     // Adventure Journal
     "adventureJournal": "Adventure Journal",
@@ -102,16 +99,13 @@ const translationMap: Record<Language, Record<string, string>> = {
     
     // Quest Panel
     "quests": "Missões",
-    "activeQuests": "Missões Ativas",
-    "availableQuests": "Missões Disponíveis",
-    "abandon": "Abandonar",
-    "accept": "Aceitar",
+    "inProgressQuests": "Missões em Andamento",
+    "completedQuests": "Missões Concluídas",
+    "noActiveQuests": "Nenhuma missão ativa. Continue escrevendo para descobrir novas!",
+    "noCompletedQuests": "Nenhuma missão concluída ainda.",
     "reward": "Recompensa",
-    "progress": "Progresso",
-    "easy": "Fácil",
-    "medium": "Média",
-    "hard": "Difícil",
-    "completeDailyQuest": "Completar Missão Diária",
+    "errorOccurred": "Ocorreu um Erro",
+    "noQuestsAvailable": "Nenhuma quest disponível. Continue escrevendo em seu diário para descobrir novas aventuras!",
 
     // Adventure Journal
     "adventureJournal": "Diário de Aventura",
