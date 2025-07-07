@@ -56,6 +56,8 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
+  useDroppable,
+  pointerWithin,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -231,6 +233,11 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   const [folderToRename, setFolderToRename] = useState<FolderToRename | null>(null);
   const [folderRenameInput, setFolderRenameInput] = useState("");
   const { logout } = useAuthStore();
+  const { token, user, isAuthenticated } = useAuthStore();
+
+  const { setNodeRef: setRootDroppableRef } = useDroppable({
+    id: 'root-droppable-area',
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -239,6 +246,26 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
       },
     })
   );
+
+  const itemParentFolderMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    if (!structure) return map;
+
+    const traverse = (folders: any[], parentFolderId: string | null) => {
+      for (const folder of folders) {
+        map.set(folder.id, parentFolderId);
+        folder.documents?.forEach((doc: any) => map.set(doc.id, folder.id));
+        if (folder.subfolders) {
+          traverse(folder.subfolders, folder.id);
+        }
+      }
+    };
+
+    structure.rootDocuments?.forEach((doc: any) => map.set(doc.id, null));
+    traverse(structure.folders, null);
+
+    return map;
+  }, [structure]);
 
   useEffect(() => {
     const initialExpanded: Record<string, boolean> = {};
@@ -277,18 +304,30 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   };
 
   const handleCreateFolder = async () => {
+    if (!isAuthenticated || !token || !user) {
+      toast({ title: "Error", description: "You must be logged in to create a folder.", variant: "destructive" });
+      return;
+    }
     try {
       const response = await fetch('/api/folders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newFolderName, user_id: 'user-123' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newFolderName, user_id: user.id }),
       });
-      if (!response.ok) throw new Error('Failed to create folder');
+
+      if (!response.ok) {
+        throw new Error('Failed to create folder');
+      }
+      
       toast({ title: "Success", description: "Folder created successfully" });
       setIsNewFolderDialogOpen(false);
       setNewFolderName("");
       revalidateStructure();
     } catch (error) {
+      console.error(error);
       toast({ title: "Error", description: "Failed to create folder", variant: "destructive" });
     }
   };
@@ -341,24 +380,35 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to delete document');
-      toast({ title: "Success", description: "Document deleted successfully" });
       revalidateStructure();
-      if(activeDocumentId === documentId) router.push('/docs');
+      toast({ title: "Success", description: "Document deleted successfully." });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete document", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Error", description: "Failed to delete document.", variant: "destructive" });
     }
   };
 
   const handleDeleteFolder = async (folderId: string) => {
     try {
-      const response = await fetch(`/api/folders/${folderId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!response.ok) throw new Error('Failed to delete folder');
-      toast({ title: "Success", description: "Folder deleted successfully" });
       revalidateStructure();
+      toast({ title: "Success", description: "Folder deleted successfully" });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to delete folder", variant: "destructive" });
+      console.error(error);
+      toast({ title: "Error", description: "Failed to delete folder.", variant: "destructive" });
     }
   };
 
@@ -366,25 +416,58 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     setActiveDragId(null);
     const { active, over } = event;
 
-    if (over && active.id !== over.id) {
-      const documentId = active.id;
-      const folderId = over.id.startsWith('folder-') ? over.id : null;
+    if (!active || !over || active.id === over.id) {
+      return;
+    }
+
+    const isMovingDocument = active.id.startsWith('doc-');
+    if (!isMovingDocument) {
+      return;
+    }
+
+    const documentId = active.id;
+    const targetId = over.id;
+
+    let newFolderId: string | null | undefined = undefined;
+
+    if (targetId === 'root-droppable-area') {
+      newFolderId = null; // Move to root
+    } else if (targetId.startsWith('folder-')) {
+      newFolderId = targetId; // Dropped on a folder
+    } else if (targetId.startsWith('doc-')) {
+      newFolderId = itemParentFolderMap.get(targetId); // Dropped on a document, move to its folder
+    }
+
+    const currentFolderId = itemParentFolderMap.get(documentId);
+    
+    // Only proceed if the folder is actually changing
+    if (newFolderId !== undefined && newFolderId !== currentFolderId) {
       try {
         const response = await fetch(`/api/documents/${documentId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ folder_id: folderId }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ folder_id: newFolderId }),
         });
-        if (!response.ok) throw new Error('Failed to move document');
-        toast({ title: "Success", description: "Document moved successfully" });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Failed to move document: ${errorData}`);
+        }
+
         revalidateStructure();
+        toast({ title: "Success", description: "Document moved successfully." });
       } catch (error) {
-        toast({ title: "Error", description: "Failed to move document", variant: "destructive" });
+        console.error(error);
+        toast({ title: "Error", description: "Failed to move document.", variant: "destructive" });
       }
     }
   };
 
   const flattenStructure = (folders: any[]): string[] => {
+    if (!folders) return [];
     const items: string[] = [];
     for (const folder of folders) {
         items.push(folder.id);
@@ -416,7 +499,8 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    router.push('/login');
+    toast({ title: "Logged out", description: "You have been successfully logged out." });
   };
 
   return (
@@ -442,47 +526,50 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
       <ScrollArea className="flex-1 px-2">
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={pointerWithin}
           onDragStart={(e) => setActiveDragId(e.active.id as string)}
           onDragEnd={handleDragEnd}
         >
-          <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
-            {isLoadingStructure ? (
-                <div className="flex items-center justify-center h-full p-4">
+          <div ref={setRootDroppableRef} className="p-2 space-y-1 min-h-full">
+            <SortableContext items={allItemIds} strategy={verticalListSortingStrategy}>
+              {isLoadingStructure ? (
+                <div className="flex justify-center items-center p-4">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
-            ) : (
-              <>
-                {structure.rootDocuments.map(doc => (
-                  <DocumentItem 
-                    key={doc.id}
-                    doc={doc}
-                    activeDocumentId={activeDocumentId}
-                    handleDeleteDocument={handleDeleteDocument}
-                    onRename={handleRename}
-                  />
-                ))}
-                {structure.folders.map(folder => (
-                  <FolderItem
-                    key={folder.id}
-                    folder={folder}
-                    activeDocumentId={activeDocumentId}
-                    handleDeleteDocument={handleDeleteDocument}
-                    onRename={handleRenameFolder}
-                    onDelete={handleDeleteFolder}
-                    expandedFolders={expandedFolders}
-                    toggleFolder={toggleFolder}
-                    handleRenameDocument={handleRename}
-                  />
-                ))}
-                {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    {translations.noPages}
-                  </div>
-                )}
-              </>
-            )}
-          </SortableContext>
+              ) : (
+                <>
+                  {structure.rootDocuments.map(doc => (
+                    <DocumentItem 
+                      key={doc.id}
+                      doc={doc}
+                      activeDocumentId={activeDocumentId}
+                      handleDeleteDocument={handleDeleteDocument}
+                      onRename={handleRename}
+                    />
+                  ))}
+                  {structure.folders.map(folder => (
+                    <FolderItem
+                      key={folder.id}
+                      folder={folder}
+                      expandedFolders={expandedFolders}
+                      toggleFolder={toggleFolder}
+                      onRename={handleRenameFolder}
+                      onDelete={handleDeleteFolder}
+                      activeDocumentId={activeDocumentId}
+                      handleDeleteDocument={handleDeleteDocument}
+                      handleRenameDocument={handleRename}
+                    />
+                  ))}
+                  {structure.rootDocuments.length === 0 && structure.folders.length === 0 && (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      {translations.noPages}
+                    </div>
+                  )}
+                </>
+              )}
+            </SortableContext>
+            <div className="h-24" />
+          </div>
           <DragOverlay>
             {activeDragId ? (
               <div className="bg-muted p-2 rounded-md shadow-lg">

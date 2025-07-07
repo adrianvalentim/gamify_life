@@ -5,9 +5,16 @@ const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080/api/v1";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const authHeader = request.headers.get('Authorization');
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (authHeader) {
+      headers['Authorization'] = authHeader;
+    }
+
     const res = await fetch(`${GO_API_URL}/folders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify(body),
     });
 

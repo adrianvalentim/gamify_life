@@ -35,9 +35,23 @@ export async function DELETE(
     request: Request,
     { params }: { params: { folderId: string } }
 ) {
+    const { folderId } = params;
+    
+    if (!folderId) {
+        return NextResponse.json({ error: "Folder ID is missing" }, { status: 400 });
+    }
+
+    const authorization = request.headers.get("authorization");
+    if (!authorization) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
-        const res = await fetch(`${GO_API_URL}/folders/${params.folderId}`, {
+        const res = await fetch(`${GO_API_URL}/folders/${folderId}`, {
             method: "DELETE",
+            headers: {
+                Authorization: authorization,
+            },
         });
 
         if (!res.ok) {
@@ -48,7 +62,7 @@ export async function DELETE(
         
         return new Response(null, { status: 204 }); // No Content
     } catch (error) {
-        console.error(`Failed to delete folder ${params.folderId}:`, error);
+        console.error(`Failed to delete folder ${folderId}:`, error);
         return NextResponse.json(
             { error: "Failed to delete folder" },
             { status: 500 }
