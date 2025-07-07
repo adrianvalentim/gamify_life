@@ -27,7 +27,7 @@ func Connect() error {
 
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info), // Set to logger.Silent for production if desired
+		Logger: logger.Default.LogMode(logger.Warn), // Changed to Warn to reduce log verbosity
 	})
 
 	if err != nil {
@@ -53,7 +53,7 @@ func MigrateAll() error {
 		&models.Tag{},
 		&models.Achievement{},
 		&models.UserProgress{},
-		&models.Quest{}, // Task struct is embedded in Quest for JSONB, so not migrated separately as a table
+		&models.Quest{},     // Task struct is embedded in Quest for JSONB, so not migrated separately as a table
 		&models.Character{}, // Added Character model
 		&models.Folder{},
 	)
@@ -70,4 +70,4 @@ func MigrateAll() error {
 // Ensure Connect() has been called successfully before using this.
 func GetDB() *gorm.DB {
 	return DB
-} 
+}

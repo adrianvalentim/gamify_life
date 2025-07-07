@@ -11,6 +11,7 @@ interface CharacterDisplayProps {
   xp: number
   nextLevelXp: number
   characterClass: string
+  avatarUrl: string
   showQuestInfo: boolean
   onToggleQuestInfo: () => void
 }
@@ -20,6 +21,7 @@ export function CharacterDisplay({
   xp,
   nextLevelXp,
   characterClass,
+  avatarUrl,
   showQuestInfo,
   onToggleQuestInfo,
 }: CharacterDisplayProps) {
@@ -43,7 +45,7 @@ export function CharacterDisplay({
         </div>
         <div className="overflow-hidden rounded-full">
           <Image
-            src={"/placeholder.svg"} // Using a placeholder for now
+            src={avatarUrl || "/placeholder.svg"}
             alt="Character avatar"
             width={56}
             height={56}

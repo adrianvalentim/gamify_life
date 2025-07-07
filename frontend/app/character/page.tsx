@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 import { Shield, Sword, Heart, Zap, Award, BookOpen, Target, Gift, ArrowLeft } from "lucide-react"
+import { useAuthStore } from "@/stores/auth-store"
 
 // Define the structure of the character data
 interface Character {
@@ -18,6 +19,7 @@ interface Character {
   class: string
   level: number
   xp: number
+  avatar_url: string
 }
 
 // Function to calculate XP needed for the next level
@@ -30,12 +32,23 @@ export default function CharacterPage() {
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
+  const { isAuthenticated, token } = useAuthStore()
   
   useEffect(() => {
+    if (!isAuthenticated) {
+      router.push("/login")
+      return
+    }
+
     async function fetchCharacter() {
       setIsLoading(true)
       try {
-        const response = await fetch("/api/character", { cache: "no-store" })
+        const response = await fetch("/api/character", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          cache: "no-store",
+        })
         if (response.ok) {
           const data: Character = await response.json()
           setCharacter(data)
@@ -55,10 +68,11 @@ export default function CharacterPage() {
           // Update local storage with the latest level
           localStorage.setItem(storedLevelKey, data.level.toString())
         } else {
-          // If no character exists, redirect to a creation page (or show a message)
-          // For now, we'll just log it.
-          console.error("No character found for this user.")
-          // router.push('/character/create')
+          if (response.status === 404) {
+            router.push('/create-character')
+          } else {
+            console.error("No character found for this user.")
+          }
         }
       } catch (error) {
         console.error("Failed to fetch character", error)
@@ -68,7 +82,7 @@ export default function CharacterPage() {
     }
 
     fetchCharacter()
-  }, [toast])
+  }, [isAuthenticated, router, toast, token])
 
   if (isLoading) {
     return (
@@ -87,7 +101,7 @@ export default function CharacterPage() {
         <p className="text-muted-foreground mb-6">
           Parece que você ainda não tem um personagem.
         </p>
-        <Button onClick={() => router.push("/")}>Voltar para o Início</Button>
+        <Button onClick={() => router.push("/create-character")}>Criar Personagem</Button>
       </div>
     )
   }
@@ -127,7 +141,7 @@ export default function CharacterPage() {
               </div>
               <div className="rounded-full border-4 border-primary p-1 overflow-hidden">
                 <Image
-                  src={"/placeholder.svg"}
+                  src={character.avatar_url || "/placeholder.svg"}
                   alt="Character avatar"
                   width={120}
                   height={120}

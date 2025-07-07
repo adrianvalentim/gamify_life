@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/adrianvalentim/gamify_journal/internal/auth"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -17,18 +18,25 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/folders", func(r chi.Router) {
+		r.Use(auth.AuthMiddleware)
+
 		r.Post("/", h.createFolder)
-		r.Get("/user/{userID}", h.getFoldersByUserID)
+		r.Get("/me", h.handleGetMyFolders)
 		r.Put("/{folderID}", h.updateFolder)
 		r.Delete("/{folderID}", h.deleteFolder)
 	})
 }
 
 func (h *Handler) createFolder(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
 	var payload struct {
 		Name     string  `json:"name"`
 		ParentID *string `json:"parent_id"`
-		UserID   string  `json:"user_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -36,7 +44,7 @@ func (h *Handler) createFolder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	folder, err := h.service.CreateFolder(payload.Name, payload.ParentID, payload.UserID)
+	folder, err := h.service.CreateFolder(payload.Name, payload.ParentID, userID)
 	if err != nil {
 		http.Error(w, "failed to create folder", http.StatusInternalServerError)
 		return
@@ -78,8 +86,12 @@ func (h *Handler) deleteFolder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) getFoldersByUserID(w http.ResponseWriter, r *http.Request) {
-	userID := chi.URLParam(r, "userID")
+func (h *Handler) handleGetMyFolders(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
 	folders, err := h.service.GetFoldersByUserID(userID)
 	if err != nil {
 		http.Error(w, "failed to get folders for user", http.StatusInternalServerError)
@@ -87,4 +99,4 @@ func (h *Handler) getFoldersByUserID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(folders)
-} 
+}

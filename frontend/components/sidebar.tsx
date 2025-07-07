@@ -18,6 +18,7 @@ import {
   Settings,
   Loader2,
   FolderPlus,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useDocument } from "@/hooks/use-document"
@@ -62,6 +63,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAuthStore } from "@/stores/auth-store"
 
 interface DocumentToRename {
   id: string;
@@ -228,6 +230,7 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [folderToRename, setFolderToRename] = useState<FolderToRename | null>(null);
   const [folderRenameInput, setFolderRenameInput] = useState("");
+  const { logout } = useAuthStore();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -411,6 +414,11 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
     return result
   }, [structure.folders]);
 
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
+
   return (
     <div className="w-64 border-r bg-muted/20 flex flex-col h-full">
       <div className="p-4 border-b">
@@ -528,6 +536,9 @@ export function Sidebar({ activeDocumentId }: SidebarProps) {
           </Dialog>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsNewFolderDialogOpen(true)}><FolderPlus className="h-4 w-4" /></Button>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSettingsOpen(true)}><Settings className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
         <SettingsPanel open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
       </div>

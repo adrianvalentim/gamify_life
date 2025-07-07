@@ -10,6 +10,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import { useLanguage } from '@/hooks/use-language';
 import { Extension } from '@tiptap/core';
 import { useDebouncedCallback } from 'use-debounce';
+import { useAuthStore } from '@/stores/auth-store';
 
 interface DocumentData {
   id: string;
@@ -64,13 +65,18 @@ export const useDocument = (documentId?: string) => {
   const [document, setDocument] = useState<Document | null>(null);
   const [saving, setSaving] = useState(false);
   const { translations } = useLanguage();
+  const { token } = useAuthStore();
 
   const createDocument = async (title?: string, folderId?: string): Promise<DocumentData | null> => {
+    if (!token) return null;
     try {
       const response = await fetch('/api/documents', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title || 'Untitled', folderId, user_id: 'user-123' }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: title || 'Untitled', folderId }),
       });
       if (!response.ok) throw new Error('Failed to create document');
       const newDoc = await response.json();
@@ -132,16 +138,20 @@ export const useDocument = (documentId?: string) => {
         debouncedSave(newDoc as Document);
         return newDoc as Document;
       });
-    }
+    },
+    immediatelyRender: false,
   }, [translations, sendParagraphToAI, documentId]);
 
   const debouncedSave = useDebouncedCallback(async (docToSave: Document) => {
-    if (!docToSave) return;
+    if (!docToSave || !token) return;
     setSaving(true);
     try {
       await fetch(`/api/documents/${documentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(docToSave),
       });
     } catch (error) {
@@ -152,11 +162,15 @@ export const useDocument = (documentId?: string) => {
   }, 2000);
 
   useEffect(() => {
-    if (!documentId) return;
+    if (!documentId || !token) return;
 
     const fetchDocument = async () => {
       try {
-        const res = await fetch(`/api/documents/${documentId}`);
+        const res = await fetch(`/api/documents/${documentId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (!res.ok) throw new Error('Failed to fetch document');
         const data: Document = await res.json();
         setDocument(data);
@@ -169,7 +183,7 @@ export const useDocument = (documentId?: string) => {
     };
     
     fetchDocument();
-  }, [documentId, translations]);
+  }, [documentId, translations, token]);
 
   useEffect(() => {
     if (!editor || !document || !editor.isEditable) {

@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
-  // In a real app, you'd get the user ID from the session/token
-  const userId = "user-123"; // Using the hardcoded seed user for now
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const backendResponse = await fetch(
-      `http://localhost:8080/api/v1/characters/user/${userId}`,
+      `http://localhost:8080/api/v1/characters/me`,
       {
+        headers: {
+          Authorization: authorization,
+        },
         cache: "no-store", // Ensure we get the latest data
       }
     );
@@ -17,6 +23,13 @@ export async function GET(request: NextRequest) {
       console.error(
         `Backend error: ${backendResponse.status} ${errorText}`
       );
+      // A 404 from the backend probably means the user exists but has no character
+      if (backendResponse.status === 404) {
+        return NextResponse.json(
+          { message: "Character not found for this user" },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
         { message: "Failed to fetch character from backend" },
         { status: backendResponse.status }

@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"time" // Added for time formatting
 
+	"github.com/adrianvalentim/gamify_journal/internal/auth"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
-
-	"github.com/go-chi/chi/v5"
 )
 
 // --- Request/Response Structs ---
@@ -64,6 +63,11 @@ func (h *Handler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	if req.Username == "" || req.Email == "" || req.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "Missing required fields: username, email, and password are required")
+		return
+	}
+
 	user, err := h.service.RegisterUser(req.Username, req.Email, req.Password)
 	if err != nil {
 		// Map service errors to appropriate HTTP status codes
@@ -86,7 +90,15 @@ func (h *Handler) HandleRegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userResp := toUserResponse(user)
-	respondWithJSON(w, http.StatusCreated, userResp)
+
+	token, err := auth.GenerateToken(user.ID)
+	if err != nil {
+		// log.Printf("Failed to generate token for user %s: %v", user.ID, err) // Requires logger
+		respondWithError(w, http.StatusInternalServerError, "Failed to generate authentication token.")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, AuthResponse{User: userResp, Token: token})
 }
 
 func (h *Handler) HandleLoginUser(w http.ResponseWriter, r *http.Request) {
@@ -109,22 +121,23 @@ func (h *Handler) HandleLoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userResp := toUserResponse(user)
-	
+
 	// TODO: Implement JWT generation and return it in the AuthResponse
 	// For now, a placeholder token is used.
-	token := "placeholder_jwt_token_for_" + user.ID
+	token, err := auth.GenerateToken(user.ID)
+	if err != nil {
+		// log.Printf("Failed to generate token for user %s: %v", user.ID, err) // Requires logger
+		respondWithError(w, http.StatusInternalServerError, "Failed to generate authentication token.")
+		return
+	}
 
 	respondWithJSON(w, http.StatusOK, AuthResponse{User: userResp, Token: token})
 }
 
-func (h *Handler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement authentication middleware to protect this endpoint.
-	// The userID might come from the authenticated user's token (e.g., GET /users/me)
-	// or an admin might be allowed to get any user by ID.
-
-	userID := chi.URLParam(r, "userID")
-	if userID == "" {
-		respondWithError(w, http.StatusBadRequest, "User ID is missing in URL path.")
+func (h *Handler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "User ID not found in context.")
 		return
 	}
 
@@ -182,4 +195,4 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	_, _ = w.Write(response) // Best effort write, error handling here can be complex
-} 
+}

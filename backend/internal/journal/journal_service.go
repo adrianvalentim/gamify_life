@@ -84,24 +84,17 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 
 	// After successfully updating, send content to the AI service
 	go func() {
-		aiResponse, err := s.aiService.ProcessText(content, entry.UserID)
+		aiResponse, err := s.aiService.ProcessText(entry.Content, entry.UserID)
 		if err != nil {
 			log.Printf("Failed to process text with AI service: %v", err)
 			return
 		}
 
 		if aiResponse != nil {
-			action, ok := aiResponse["action"].(string)
-			if ok && action == "AWARD_XP" {
-				// The AI service now handles the XP update via a callback to the backend.
-				// We can log that the process was triggered.
-				log.Printf("AI agent initiated XP award for user %s.", entry.UserID)
-			} else {
-				log.Printf("AI agent returned action: '%s' or action not a string.", action)
-			}
+			log.Printf("AI service processed entry %s, response: %+v", id, aiResponse)
+		} else {
+			log.Printf("AI service processed entry %s with no action returned.", id)
 		}
-
-		log.Printf("AI service processed entry %s, response: %+v", id, aiResponse)
 	}()
 
 	return entry, nil

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { EditorContent } from "@tiptap/react"
 import { CharacterDisplay } from "@/components/character-display"
 import { EditorToolbar } from "@/components/editor-toolbar"
@@ -10,15 +10,10 @@ import { QuestInfoPanel } from "@/components/quest-info-panel"
 import { cn } from "@/lib/utils"
 import { useDocument } from "@/hooks/use-document"
 import { useLanguage } from "@/hooks/use-language"
+import { useCharacter } from "@/hooks/use-character"
 
 interface DocumentEditorProps {
   documentId: string
-}
-
-interface Character {
-  level: number
-  xp: number
-  class: string
 }
 
 const getNextLevelXp = (level: number) => {
@@ -28,28 +23,9 @@ const getNextLevelXp = (level: number) => {
 export function DocumentEditor({ documentId }: DocumentEditorProps) {
   const [showQuestPanel, setShowQuestPanel] = useState(false)
   const [showQuestInfo, setShowQuestInfo] = useState(false)
-  const [character, setCharacter] = useState<Character | null>(null)
+  const { character, isLoading: isCharacterLoading } = useCharacter()
   const { translations } = useLanguage()
   const { editor, document, saving, handleTitleChange } = useDocument(documentId)
-
-  useEffect(() => {
-    const fetchCharacter = async () => {
-      try {
-        const response = await fetch("/api/character", { cache: "no-store" })
-        if (response.ok) {
-          const data = await response.json()
-          setCharacter(data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch character data:", error)
-      }
-    }
-
-    fetchCharacter()
-    const interval = setInterval(fetchCharacter, 5000) // Refresh every 5 seconds
-
-    return () => clearInterval(interval)
-  }, [])
 
   const handleEditorAreaClick = useCallback(
     (event: React.MouseEvent) => {
@@ -62,8 +38,12 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
     [editor],
   )
 
-  if (!editor || !document || !character) {
+  if (!editor || !document || isCharacterLoading) {
     return <div>Loading...</div>
+  }
+
+  if (!character) {
+    return <div>Could not load character data.</div>
   }
 
   const nextLevelXp = getNextLevelXp(character.level)
@@ -85,6 +65,7 @@ export function DocumentEditor({ documentId }: DocumentEditorProps) {
             xp={character.xp}
             nextLevelXp={nextLevelXp}
             characterClass={character.class}
+            avatarUrl={character.avatar_url}
             showQuestInfo={showQuestInfo}
             onToggleQuestInfo={() => setShowQuestInfo(!showQuestInfo)}
           />

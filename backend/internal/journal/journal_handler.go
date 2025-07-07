@@ -3,6 +3,8 @@ package journal
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/adrianvalentim/gamify_journal/internal/auth"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -16,11 +18,13 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/journal", func(r chi.Router) {
+		r.Use(auth.AuthMiddleware)
+
 		r.Post("/", h.createJournalEntry)
+		r.Get("/me", h.handleGetMyJournalEntries)
 		r.Get("/{journalId}", h.getJournalEntry)
 		r.Put("/{journalId}", h.updateJournalEntry)
 		r.Delete("/{journalId}", h.deleteJournalEntry)
-		r.Get("/user/{userID}", h.getJournalEntriesByUserID)
 	})
 }
 
@@ -36,10 +40,15 @@ func (h *Handler) getJournalEntry(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
 	var payload struct {
 		Title    string  `json:"title"`
 		Content  string  `json:"content"`
-		UserID   string  `json:"user_id"`
 		FolderID *string `json:"folder_id"`
 	}
 
@@ -48,7 +57,7 @@ func (h *Handler) createJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content, payload.UserID, payload.FolderID)
+	entry, err := h.service.CreateJournalEntry(payload.Title, payload.Content, userID, payload.FolderID)
 	if err != nil {
 		http.Error(w, "failed to create entry", http.StatusInternalServerError)
 		return
@@ -80,8 +89,13 @@ func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(entry)
 }
 
-func (h *Handler) getJournalEntriesByUserID(w http.ResponseWriter, r *http.Request) {
-	userID := chi.URLParam(r, "userID")
+func (h *Handler) handleGetMyJournalEntries(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
 	entries, err := h.service.GetJournalEntriesByUserID(userID)
 	if err != nil {
 		http.Error(w, "failed to get entries for user", http.StatusInternalServerError)
@@ -100,4 +114,4 @@ func (h *Handler) deleteJournalEntry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-} 
+}

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080/api/v1";
 if (!GO_API_URL) {
@@ -6,12 +6,28 @@ if (!GO_API_URL) {
 }
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ documentId: string }> }
+  request: NextRequest,
+  { params }: { params: { documentId: string } }
 ) {
-  const { documentId } = await params;
+  const url = new URL(request.url);
+  const documentId = url.pathname.split("/").pop();
+
+  if (!documentId) {
+    return NextResponse.json(
+      { error: "Document ID is missing" },
+      { status: 400 }
+    );
+  }
+
+  const authorization = request.headers.get("authorization");
+  if (!authorization) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const res = await fetch(`${GO_API_URL}/journal/${documentId}`);
+    const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {
+      headers: { Authorization: authorization },
+    });
     if (!res.ok) {
       if (res.status === 404) {
         return NextResponse.json({
@@ -37,15 +53,32 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ documentId: string }> }
+  request: NextRequest,
+  { params }: { params: { documentId: string } }
 ) {
-  const { documentId } = await params;
+  const url = new URL(request.url);
+  const documentId = url.pathname.split("/").pop();
+
+  if (!documentId) {
+    return NextResponse.json(
+      { error: "Document ID is missing" },
+      { status: 400 }
+    );
+  }
+
+  const authorization = request.headers.get("authorization");
+  if (!authorization) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: authorization,
+      },
       body: JSON.stringify(body),
     });
 
@@ -68,13 +101,30 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ documentId: string }> }
+  request: NextRequest,
+  { params }: { params: { documentId: string } }
 ) {
-  const { documentId } = await params;
+  const url = new URL(request.url);
+  const documentId = url.pathname.split("/").pop();
+
+  if (!documentId) {
+    return NextResponse.json(
+      { error: "Document ID is missing" },
+      { status: 400 }
+    );
+  }
+  
+  const authorization = request.headers.get("authorization");
+  if (!authorization) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
   try {
     const res = await fetch(`${GO_API_URL}/journal/${documentId}`, {
       method: "DELETE",
+      headers: {
+        Authorization: authorization,
+      },
     });
 
     if (!res.ok) {

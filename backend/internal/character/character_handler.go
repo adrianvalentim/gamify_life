@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/adrianvalentim/gamify_journal/internal/auth"
 	"github.com/adrianvalentim/gamify_journal/internal/models" // Project specific models
-	// auth "github.com/adrianvalentim/gamify_journal/internal/auth" // Placeholder for auth package
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
@@ -31,16 +31,21 @@ func NewHandler(service ICharacterService) *Handler {
 // RegisterRoutes sets up the routes for character operations within a Chi router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Route("/characters", func(r chi.Router) {
-		r.Post("/", h.handleCreateCharacter)                  // POST /api/v1/characters
+		// Authenticated routes
+		r.Group(func(r chi.Router) {
+			r.Use(auth.AuthMiddleware)
+			r.Post("/", h.handleCreateCharacter) // POST /api/v1/characters
+			r.Get("/me", h.handleGetMyCharacter) // GET /api/v1/characters/me
+		})
+
+		// Public or other character routes
 		r.Get("/user/{userID}", h.handleGetCharacterByUserID) // GET /api/v1/characters/user/{userID}
-		// Example: Get character by its own ID
-		r.Get("/{characterID}", h.handleGetCharacterByID) // GET /api/v1/characters/{characterID}
-		// Example: Grant XP to a character - might require auth/admin privileges
-		r.Post("/{characterID}/grant-xp", h.handleGrantXP) // POST /api/v1/characters/{characterID}/grant-xp
-		// TODO: Consider a GET /me/character endpoint that uses auth context
+		r.Get("/{characterID}", h.handleGetCharacterByID)     // GET /api/v1/characters/{characterID}
+		r.Post("/{characterID}/grant-xp", h.handleGrantXP)    // POST /api/v1/characters/{characterID}/grant-xp
 	})
 
-	// New route scoped by user
+	// This route seems misplaced, let's keep it separate for now if it serves a unique purpose.
+	// It's better to have a more RESTful approach like POST /characters/{characterID}/xp
 	r.Post("/users/{userID}/character/xp", h.handleGrantXPByUserID)
 }
 
@@ -49,34 +54,36 @@ type GrantXPInput struct {
 	Amount int `json:"xp_amount"`
 }
 
-// handleCreateCharacter handles the HTTP request to create a new character.
+type createCharacterRequest struct {
+	Name      string `json:"name"`
+	Class     string `json:"class"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 func (h *Handler) handleCreateCharacter(w http.ResponseWriter, r *http.Request) {
-	var input CreateCharacterInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "Invalid request payload: "+err.Error(), http.StatusBadRequest)
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
 		return
 	}
 
-	// In a real application, UserID might come from JWT token/auth context
-	// For now, it's expected in the CreateCharacterInput payload.
-	// userID := auth.GetUserIDFromContext(r.Context()) // Example
-	// input.UserID = userID
-
-	if input.UserID == "" {
-		http.Error(w, `{"error": "UserID is required in payload"}`, http.StatusBadRequest)
+	var req createCharacterRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
+	}
+	defer r.Body.Close()
+
+	input := CreateCharacterInput{
+		UserID:    userID,
+		Name:      req.Name,
+		Class:     models.CharacterClass(req.Class),
+		AvatarURL: req.AvatarURL,
 	}
 
 	character, err := h.service.CreateCharacter(input)
 	if err != nil {
-		var valErr *ValidationError
-		if errors.As(err, &valErr) {
-			http.Error(w, `{"error": "`+valErr.Error()+`"}`, http.StatusBadRequest)
-			return
-		}
-		// Check for other specific errors, like if user already has a character if that's a rule
-		// else if errors.Is(err, someSpecificError) { ... }
-		http.Error(w, `{"error": "Failed to create character"}`, http.StatusInternalServerError)
+		http.Error(w, "Failed to create character", http.StatusInternalServerError)
 		return
 	}
 
@@ -221,4 +228,26 @@ func (h *Handler) handleGrantXPByUserID(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) handleGetMyCharacter(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	character, err := h.service.GetCharacterByUserID(userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, `{"error": "Character not found for this user"}`, http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Failed to get character", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(character)
 }

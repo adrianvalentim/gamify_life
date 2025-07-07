@@ -1,4 +1,4 @@
-import { DocumentEditor } from "@/components/document-editor"
+import { WelcomePage } from "@/components/welcome-page"
 import { Sidebar } from "@/components/sidebar"
 
 export default function DocsPage() {
@@ -6,7 +6,7 @@ export default function DocsPage() {
     <div className="flex h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <DocumentEditor />
+        <WelcomePage />
       </main>
     </div>
   )

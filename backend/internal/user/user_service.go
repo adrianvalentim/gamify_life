@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -66,27 +65,6 @@ func (s *service) checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func (s *service) validatePasswordComplexity(password string) error {
-	if len(password) < minPasswordLength {
-		return ErrPasswordTooShort
-	}
-	var hasUpper, hasLower, hasDigit bool
-	for _, char := range password {
-		switch {
-		case unicode.IsUpper(char):
-			hasUpper = true
-		case unicode.IsLower(char):
-			hasLower = true
-		case unicode.IsDigit(char):
-			hasDigit = true
-		}
-	}
-	if !hasUpper || !hasLower || !hasDigit {
-		return ErrPasswordComplexity
-	}
-	return nil
-}
-
 func (s *service) sanitizeAndValidateEmail(email string) (string, error) {
 	saneEmail := strings.ToLower(strings.TrimSpace(email))
 	if !emailRegex.MatchString(saneEmail) {
@@ -104,10 +82,6 @@ func (s *service) RegisterUser(username, email, password string) (*models.User, 
 
 	saneEmail, err := s.sanitizeAndValidateEmail(email)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := s.validatePasswordComplexity(password); err != nil {
 		return nil, err
 	}
 
@@ -212,4 +186,3 @@ func (s *service) AuthenticateUser(email, password string) (*models.User, error)
 	user.HashedPassword = ""
 	return user, nil
 }
- 

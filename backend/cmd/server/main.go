@@ -65,16 +65,17 @@ func main() {
 	journalHandler := journal.NewHandler(journalService)
 	characterHandler := character.NewHandler(characterService)
 	folderHandler := folder.NewHandler(folderService)
+	aiHandler := ai.NewAIHandler(aiService)
 
 	// Seed data
 	seedData(userStore, characterStore)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		r.Mount("/users", userRouter(userHandler))
-		r.Mount("/auth", authRouter(userHandler))
+		userHandler.RegisterRoutes(r)
 		journalHandler.RegisterRoutes(r)
 		characterHandler.RegisterRoutes(r)
 		folderHandler.RegisterRoutes(r)
+		aiHandler.RegisterRoutes(r)
 	})
 
 	port := os.Getenv("PORT")
@@ -140,17 +141,4 @@ func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 	} else {
 		log.Printf("Character for user %s already exists. Skipping character seed.", seedUserID)
 	}
-}
-
-func userRouter(h *user.Handler) http.Handler {
-	r := chi.NewRouter()
-	r.Post("/register", h.HandleRegisterUser)
-	r.Get("/{userID}", h.HandleGetUserByID)
-	return r
-}
-
-func authRouter(h *user.Handler) http.Handler {
-	r := chi.NewRouter()
-	r.Post("/login", h.HandleLoginUser)
-	return r
 }

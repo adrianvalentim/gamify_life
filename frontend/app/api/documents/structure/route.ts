@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
 
@@ -31,19 +31,22 @@ function buildStructure(folders: any[], documents: any[]) {
     return { rootDocuments, folders: rootFolders };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const userID = "user-123"; // Hardcoded for now
+    const authorization = request.headers.get("authorization");
+    if (!authorization) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const headers = { Authorization: authorization };
+
     const [docsRes, foldersRes] = await Promise.all([
-        fetch(`${GO_API_URL}/journal/user/${userID}`),
-        fetch(`${GO_API_URL}/folders/user/${userID}`)
+        fetch(`${GO_API_URL}/journal/me`, { headers }),
+        fetch(`${GO_API_URL}/folders/me`, { headers })
     ]);
     
-    if (!docsRes.ok) {
-      throw new Error(`Backend document fetch failed with status: ${docsRes.status}`);
-    }
-    if (!foldersRes.ok) {
-        throw new Error(`Backend folder fetch failed with status: ${foldersRes.status}`);
+    if (docsRes.status === 401 || foldersRes.status === 401) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     
     const documents = await docsRes.json();

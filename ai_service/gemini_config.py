@@ -45,10 +45,10 @@ def initialize_gemini():
         }
 
         gemini = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
+            model_name="gemini-1.5-flash",
             generation_config=generation_config,
         )
         logger.info("Gemini generative model initialized successfully.")
     except Exception as e:
         logger.error(f"Failed to configure or initialize Gemini model: {e}")
-        raise
+        raise 

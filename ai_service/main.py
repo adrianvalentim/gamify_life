@@ -6,8 +6,14 @@ from pathlib import Path
 import os
 import json
 import httpx
+import base64
 
+# Import for text agent
 import gemini_config
+
+# Import for image agent - use an alias to avoid name conflicts
+from google import genai as genai_for_images
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -25,6 +31,7 @@ async def lifespan(app: FastAPI):
     logger.info("AI Service: Initializing...")
     try:
         gemini_config.initialize_gemini()
+        # The image agent needs no special initialization as the client is created on the fly
         logger.info("AI Service: Gemini initialization successful. Service is ready.")
     except Exception as e:
         logger.critical(f"AI Service: FATAL ERROR during Gemini initialization: {e}")
@@ -47,6 +54,9 @@ class ParagraphInput(BaseModel):
     paragraph: str
     user_id: str
 
+class AvatarInput(BaseModel):
+    prompt: str
+
 # --- Backend Communication ---
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8080/api/v1")
 
@@ -63,12 +73,10 @@ async def update_character_xp_in_backend(user_id: str, xp_amount: int):
             return response.json()
     except httpx.RequestError as e:
         logger.error(f"Error calling backend to update XP for user {user_id}: {e}")
-        # This is an internal error, so we don't expose it to the client
         return None
     except Exception as e:
         logger.error(f"An unexpected error occurred during XP update for user {user_id}: {e}")
         return None
-
 
 # --- AI Agents ---
 async def update_character_agent(paragraph: str) -> dict:
@@ -87,7 +95,6 @@ async def update_character_agent(paragraph: str) -> dict:
         
         response = gemini_config.gemini.generate_content(full_prompt)
         
-        # Clean the response to ensure it's valid JSON
         cleaned_response = response.text.strip().replace('`', '')
         if cleaned_response.startswith("json"):
             cleaned_response = cleaned_response[4:].strip()
@@ -104,7 +111,6 @@ async def update_character_agent(paragraph: str) -> dict:
         logger.error(f"Error in update_character_agent: {e}")
         raise HTTPException(status_code=500, detail="An error occurred while processing with the agent.")
 
-
 # --- API Endpoints ---
 @app.get("/")
 def read_root():
@@ -117,7 +123,6 @@ async def agent_update_character(input_data: ParagraphInput):
     logger.info(f"Received paragraph from user {input_data.user_id} for character update.")
     
     agent_response = await update_character_agent(input_data.paragraph)
-
     action = agent_response.get("action")
     
     if action == "AWARD_XP":
@@ -143,7 +148,43 @@ async def agent_update_character(input_data: ParagraphInput):
     logger.warning(f"Agent returned an unknown action: {action}")
     return {"status": "no_op", "detail": f"Agent returned an unknown action: {action}"}
 
+
+@app.post("/generate-avatar")
+async def generate_avatar(input_data: AvatarInput):
+    """
+    Generates an avatar image using the 'google-genai' library, keeping it
+    separate from the text processing agent.
+    """
+    logger.info(f"Received request to generate avatar with prompt: {input_data.prompt}")
+    try:
+        # This client is created on the fly and uses the google-genai library
+        # It assumes the API key is loaded into the environment by the lifespan manager
+        client = genai_for_images.Client()
+        
+        result = client.models.generate_images(
+            model="models/imagen-4.0-generate-preview-06-06",
+            prompt=input_data.prompt,
+            config=dict(
+                number_of_images=1,
+                output_mime_type="image/jpeg",
+                person_generation="ALLOW_ADULT",
+                aspect_ratio="1:1",
+            ),
+        )
+
+        if not result.generated_images:
+            raise HTTPException(status_code=500, detail="No images were generated.")
+
+        image_bytes = result.generated_images[0].image.image_bytes
+        encoded_image = base64.b64encode(image_bytes).decode('utf-8')
+
+        return {"avatar_url": f"data:image/jpeg;base64,{encoded_image}"}
+
+    except Exception as e:
+        logger.error(f"Error in generate_avatar: {e}")
+        raise HTTPException(status_code=500, detail=f"An error occurred during image generation: {e}")
+
 # To run this app (from the ai_service directory):
-# 1. Install dependencies: pip install fastapi uvicorn python-dotenv
+# 1. Install dependencies: pip install fastapi uvicorn python-dotenv google-genai
 # 2. Set your GEMINI_API_KEY environment variable.
-# 3. Run: uvicorn main:app --reload --port 8000 
+# 3. Run: uvicorn main:app --reload --port 8001 

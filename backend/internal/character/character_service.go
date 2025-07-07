@@ -26,9 +26,10 @@ func NewService(store ICharacterStore) *Service {
 
 // CreateCharacterInput defines the input for creating a character.
 type CreateCharacterInput struct {
-	UserID string
-	Name   string
-	Class  models.CharacterClass
+	UserID    string
+	Name      string
+	Class     models.CharacterClass
+	AvatarURL string
 }
 
 // ValidationError is a custom error type for validation errors.
@@ -69,11 +70,12 @@ func (s *Service) CreateCharacter(input CreateCharacterInput) (*models.Character
 	// }
 
 	character := &models.Character{
-		UserID: input.UserID,
-		Name:   input.Name,
-		Class:  string(input.Class),
-		Level:  1,
-		XP:     0,
+		UserID:    input.UserID,
+		Name:      input.Name,
+		Class:     string(input.Class),
+		AvatarURL: input.AvatarURL,
+		Level:     1,
+		XP:        0,
 	}
 
 	if err := s.store.CreateCharacter(character); err != nil {
@@ -140,4 +142,4 @@ func (s *Service) GetCharacter(characterID string) (*models.Character, error) {
 		return nil, err
 	}
 	return char, nil
-} 
+}

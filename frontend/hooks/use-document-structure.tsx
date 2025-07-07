@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface Document {
   id: string;
@@ -28,13 +29,20 @@ export function useDocumentStructure() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token, isAuthenticated } = useAuthStore();
 
   const fetchStructure = useCallback(async () => {
+    if (!token || !isAuthenticated) return; // Don't fetch if not authenticated
+
     try {
       // Don't set loading to true if already fetching
       // setIsLoading(true);
       setError(null);
-      const response = await fetch("/api/documents/structure");
+      const response = await fetch("/api/documents/structure", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch document structure");
       }
@@ -45,13 +53,18 @@ export function useDocumentStructure() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
   // Initial fetch
   useEffect(() => {
-    setIsLoading(true); // Set loading only on initial mount fetch
-    fetchStructure();
-  }, [fetchStructure]);
+    if (isAuthenticated) {
+      setIsLoading(true); // Set loading only on initial mount fetch
+      fetchStructure();
+    } else {
+      setIsLoading(false);
+      setStructure({ rootDocuments: [], folders: [] }); // Clear structure if not authenticated
+    }
+  }, [fetchStructure, isAuthenticated]);
 
   // Renamed for clarity
   const revalidateStructure = useCallback(() => {
