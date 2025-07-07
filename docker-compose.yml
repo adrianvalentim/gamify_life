@@ -1,5 +1,3 @@
-version: '3.8'
-
 # This Docker Compose file orchestrates the entire Gamelife application stack.
 # Services:
 #   db:         PostgreSQL database
@@ -49,6 +47,8 @@ services:
     build:
       context: ./ai_service
       dockerfile: Dockerfile
+    env_file:
+      - ./ai_service/.env
     container_name: gamelife-ai
     restart: on-failure
     ports:
@@ -79,6 +79,4 @@ services:
 
 volumes:
   # Defines the named volume for persisting PostgreSQL data
-  postgres_data:
-    name: 1b1900a30aceb499a1e8abc49650285ac1e2281184cd1cdfeb1021bd0e42c27d
-    external: true 
+  postgres_data: {}

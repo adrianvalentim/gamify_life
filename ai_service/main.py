@@ -69,7 +69,7 @@ async def update_character_xp_in_backend(user_id: str, xp_amount: int):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{BACKEND_URL}/users/{user_id}/character/xp",
+                f"{BACKEND_URL}/api/v1/users/{user_id}/character/xp",
                 json={"xp_amount": xp_amount}
             )
             response.raise_for_status()
@@ -86,7 +86,7 @@ async def get_active_quests_from_backend(user_id: str) -> list:
     """Fetches active quests for a user from the Go backend."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{BACKEND_URL}/quests/user/{user_id}")
+            response = await client.get(f"{BACKEND_URL}/api/v1/quests/user/{user_id}")
             response.raise_for_status()
             logger.info(f"Successfully fetched active quests for user {user_id}.")
             return response.json()
@@ -102,7 +102,7 @@ async def create_quest_in_backend(user_id: str, data: dict):
     payload = {**data, "userId": user_id}
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{BACKEND_URL}/quests", json=payload)
+            response = await client.post(f"{BACKEND_URL}/api/v1/quests", json=payload)
             response.raise_for_status()
             logger.info(f"Successfully created quest for user {user_id}.")
             return response.json()
@@ -114,7 +114,7 @@ async def update_quest_in_backend(quest_id: str, data: dict):
     """Calls the backend to update an existing quest."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.put(f"{BACKEND_URL}/quests/{quest_id}", json=data)
+            response = await client.put(f"{BACKEND_URL}/api/v1/quests/{quest_id}", json=data)
             response.raise_for_status()
             logger.info(f"Successfully updated quest {quest_id}.")
             return response.json()
@@ -126,7 +126,7 @@ async def complete_quest_in_backend(quest_id: str):
     """Calls the backend to mark a quest as complete."""
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(f"{BACKEND_URL}/quests/{quest_id}/complete")
+            response = await client.post(f"{BACKEND_URL}/api/v1/quests/{quest_id}/complete")
             response.raise_for_status()
             logger.info(f"Successfully completed quest {quest_id}.")
             return response.json()

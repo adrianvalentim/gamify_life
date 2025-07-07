@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080/api/v1";
+const BACKEND_URL = process.env.INTERNAL_API_URL || "http://localhost:8080";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const goResponse = await fetch(`${GO_API_URL}/register`, {
+    const goResponse = await fetch(`${BACKEND_URL}/api/v1/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
