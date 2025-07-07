@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Use the internal URL for server-side fetching, otherwise use the public one.
+const backendUrl =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
+
 export async function GET(request: NextRequest) {
   const authorization = request.headers.get("authorization");
 
   if (!authorization) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
-
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
   try {
     const backendResponse = await fetch(

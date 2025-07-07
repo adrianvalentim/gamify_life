@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Use the internal URL for server-side fetching, otherwise use the public one.
+const backendUrl =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { questId: string } }
@@ -17,9 +23,6 @@ export async function POST(
       { status: 400 }
     );
   }
-
-  const backendUrl =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
   try {
     const backendResponse = await fetch(

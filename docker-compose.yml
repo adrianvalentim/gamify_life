@@ -15,12 +15,12 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: gamelife-db
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: youruser
+      POSTGRES_PASSWORD: yourpassword
       POSTGRES_DB: gamify_journal_db
     ports:
       # Exposes the database on the host machine's port 5432
@@ -39,9 +39,9 @@ services:
       - "8080:8080"
     environment:
       # The backend connects to the 'db' service using its service name as the host.
-      - DB_DSN=host=db user=user password=password dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC
+      - DB_DSN=host=db user=youruser password=yourpassword dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC
       # The backend needs to know the URL of the AI service.
-      - AI_SERVICE_URL=http://ai-service:8001/agent/update_character
+      - AI_SERVICE_URL=http://ai-service:8001
     depends_on:
       - db
 
@@ -71,10 +71,14 @@ services:
       # The browser running the Next.js app will connect to the backend via localhost,
       # as the backend's port is mapped to the host.
       - NEXT_PUBLIC_API_URL=http://localhost:8080
+      # The Next.js server (running in the container) connects to the backend via its service name.
+      - INTERNAL_API_URL=http://backend:8080
     depends_on:
       - backend
       - ai-service
 
 volumes:
   # Defines the named volume for persisting PostgreSQL data
-  postgres_data: 
+  postgres_data:
+    name: 1b1900a30aceb499a1e8abc49650285ac1e2281184cd1cdfeb1021bd0e42c27d
+    external: true 

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
+const GO_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
 
 // A function to build the folder structure recursively
 function buildStructure(folders: any[], documents: any[]) {
@@ -41,8 +44,8 @@ export async function GET(request: NextRequest) {
     const headers = { Authorization: authorization };
 
     const [docsRes, foldersRes] = await Promise.all([
-        fetch(`${GO_API_URL}/journal/me`, { headers }),
-        fetch(`${GO_API_URL}/folders/me`, { headers })
+        fetch(`${GO_API_URL}/api/v1/journal/me`, { headers }),
+        fetch(`${GO_API_URL}/api/v1/folders/me`, { headers })
     ]);
     
     if (docsRes.status === 401 || foldersRes.status === 401) {

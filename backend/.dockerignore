@@ -1,0 +1,11 @@
+# Ignore git files
+.git
+.gitignore
+
+# Ignore the compiled binary if it exists locally, so it doesn't conflict
+# with the one built inside the container.
+server
+
+# Ignore macOS specific files
+.DS_Store
+._* 

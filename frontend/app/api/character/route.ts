@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const GO_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
+
 export async function GET(request: NextRequest) {
   const authorization = request.headers.get("authorization");
 
@@ -9,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const backendResponse = await fetch(
-      `http://localhost:8080/api/v1/characters/me`,
+      `${GO_API_URL}/api/v1/characters/me`,
       {
         headers: {
           Authorization: authorization,

@@ -1,0 +1,12 @@
+# Ignore git files
+.git
+.gitignore
+
+# Ignore dependencies and build artifacts, which should be handled
+# inside the container.
+node_modules
+.next
+
+# Ignore macOS specific files
+.DS_Store
+._* 

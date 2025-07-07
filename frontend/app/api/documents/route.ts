@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 
-const GO_API_URL = process.env.GO_API_URL || 'http://localhost:8080/api/v1';
+const GO_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${GO_API_URL}/journal`, {
+    const res = await fetch(`${GO_API_URL}/api/v1/journal`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
