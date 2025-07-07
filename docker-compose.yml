@@ -1,0 +1,80 @@
+version: '3.8'
+
+# This Docker Compose file orchestrates the entire Gamelife application stack.
+# Services:
+#   db:         PostgreSQL database
+#   backend:    Go API service
+#   ai-service: Python AI/ML service
+#   frontend:   Next.js web application
+#
+# To run:
+#   docker-compose up --build
+#
+# To stop:
+#   docker-compose down
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: gamelife-db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: gamify_journal_db
+    ports:
+      # Exposes the database on the host machine's port 5432
+      - "5432:5432"
+    volumes:
+      # Persists database data on the host machine
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gamelife-backend
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      # The backend connects to the 'db' service using its service name as the host.
+      - DB_DSN=host=db user=user password=password dbname=gamify_journal_db port=5432 sslmode=disable TimeZone=UTC
+      # The backend needs to know the URL of the AI service.
+      - AI_SERVICE_URL=http://ai-service:8001/agent/update_character
+    depends_on:
+      - db
+
+  ai-service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: gamelife-ai
+    restart: on-failure
+    ports:
+      - "8001:8001"
+    environment:
+      # The AI service needs to know the URL of the backend for callbacks.
+      - BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gamelife-frontend
+    restart: on-failure
+    ports:
+      - "3000:3000"
+    environment:
+      # The browser running the Next.js app will connect to the backend via localhost,
+      # as the backend's port is mapped to the host.
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+      - ai-service
+
+volumes:
+  # Defines the named volume for persisting PostgreSQL data
+  postgres_data: 
