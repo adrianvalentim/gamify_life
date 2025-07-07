@@ -1,6 +1,7 @@
 package quest
 
 import (
+	"github.com/adrianvalentim/gamify_journal/internal/character"
 	"github.com/adrianvalentim/gamify_journal/internal/models"
 )
 
@@ -14,12 +15,13 @@ type IQuestStore interface {
 
 // Service provides quest-related business logic.
 type Service struct {
-	store IQuestStore
+	store            IQuestStore
+	characterService *character.Service
 }
 
 // NewService creates a new quest service.
-func NewService(store IQuestStore) *Service {
-	return &Service{store: store}
+func NewService(store IQuestStore, characterService *character.Service) *Service {
+	return &Service{store: store, characterService: characterService}
 }
 
 // CreateQuestInput defines the input for creating a new quest.
@@ -81,23 +83,37 @@ func (s *Service) UpdateQuest(id string, input UpdateQuestInput) (*models.Quest,
 	return quest, nil
 }
 
-// CompleteQuest marks a quest as completed.
-func (s *Service) CompleteQuest(id string) (*models.Quest, error) {
-	quest, err := s.store.GetQuestByID(id)
+// CompleteQuest marks a quest as completed and grants experience to the user's character.
+func (s *Service) CompleteQuest(questID string) (*models.Quest, error) {
+	quest, err := s.store.GetQuestByID(questID)
 	if err != nil {
+		return nil, err
+	}
+
+	// Avoid re-completing a quest
+	if quest.Status == models.QuestStatusCompleted {
+		// Or return an error, depending on desired behavior
+		return quest, nil
+	}
+
+	// Grant XP to the character
+	// We need the character to grant XP to. Let's assume the character service can find a character by userID.
+	char, err := s.characterService.GetCharacterByUserID(quest.UserID)
+	if err != nil {
+		// Handle case where character is not found for the user
+		return nil, err
+	}
+
+	if _, _, err := s.characterService.GrantXP(char.ID, quest.ExperienceReward); err != nil {
+		// Decide how to handle this error. Should we still mark the quest as complete?
+		// For now, let's return the error and not complete the quest.
 		return nil, err
 	}
 
 	quest.Status = models.QuestStatusCompleted
-
-	err = s.store.UpdateQuest(quest)
-	if err != nil {
+	if err := s.store.UpdateQuest(quest); err != nil {
 		return nil, err
 	}
-
-	// Here you might also grant the XP to the character.
-	// This would require a dependency on the character service.
-	// For now, we'll keep it simple.
 
 	return quest, nil
 }

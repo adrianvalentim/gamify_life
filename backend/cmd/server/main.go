@@ -62,7 +62,7 @@ func main() {
 	userService := user.NewService(userStore)
 	journalService := journal.NewService(journalStore, aiService, characterService)
 	folderService := folder.NewService(folderStore)
-	questService := quest.NewService(questStore)
+	questService := quest.NewService(questStore, characterService)
 
 	userHandler := user.NewHandler(userService)
 	journalHandler := journal.NewHandler(journalService)

@@ -13,7 +13,7 @@ Follow these steps to process the user's input:
 - `target_entity`: (String) "quest", "character", or "none".
 - `entity_id`: (String) Leave empty for new entities.
 - `parameters`: (Object)
-    - For `CREATE_QUEST`: `{"title": "Creative Quest Title", "description": "Concise task description"}`
+    - For `CREATE_QUEST`: `{"title": "Creative Quest Title", "description": "Concise task description", "experienceReward": integer}`
     - For `AWARD_XP`: `{"amount": integer}`
     - For `NO_ACTION_RECOGNIZED`: `{"original_text": "The user's full text"}`
 
@@ -30,7 +30,8 @@ Follow these steps to process the user's input:
       "entity_id": "",
       "parameters": {
         "title": "Slay the Monster Report",
-        "description": "Finish the report for work."
+        "description": "Finish the report for work.",
+        "experienceReward": 50
       }
     }
   ]
@@ -69,7 +70,8 @@ Follow these steps to process the user's input:
       "entity_id": "",
       "parameters": {
         "title": "Cleanse the Sacred Vessels",
-        "description": "Wash the dishes."
+        "description": "Wash the dishes.",
+        "experienceReward": 10
       }
     }
   ]

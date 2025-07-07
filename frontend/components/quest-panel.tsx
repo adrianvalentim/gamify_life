@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { X, CheckCircle2, Star, Loader2, AlertTriangle } from "lucide-react"
 import { useLanguage } from "@/hooks/use-language"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuthStore } from "@/stores/auth-store"
+import { useSWRConfig } from "swr"
 
 interface QuestPanelProps {
   onClose: () => void
@@ -14,6 +16,31 @@ interface QuestPanelProps {
 export function QuestPanel({ onClose }: QuestPanelProps) {
   const { translations } = useLanguage()
   const { quests, isLoading, error } = useQuests()
+  const { token } = useAuthStore()
+  const { mutate } = useSWRConfig()
+
+  const handleCompleteQuest = async (questId: string) => {
+    if (!token) return
+
+    try {
+      const res = await fetch(`/api/quests/${questId}/complete`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to complete quest")
+      }
+
+      // Revalidate the quests data to update the UI
+      mutate(["/api/quests", token])
+    } catch (err) {
+      console.error(err)
+      // Here you might want to show a toast notification to the user
+    }
+  }
 
   const inProgressQuests = quests.filter((q) => q.status === "in_progress")
   const completedQuests = quests.filter((q) => q.status === "completed")
@@ -55,12 +82,24 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
           {inProgressQuests.length > 0 ? (
             inProgressQuests.map((quest) => (
               <div key={quest.id} className="border rounded-md p-3 space-y-2 bg-muted/30">
-                <h4 className="font-medium">{quest.title}</h4>
-                <p className="text-sm text-muted-foreground">{quest.description}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-amber-500 font-medium">
-                    {translations.reward}: {quest.experienceReward} XP
-                  </span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-grow pr-4">
+                    <h4 className="font-medium">{quest.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">{quest.description}</p>
+                  </div>
+                  <div className="flex-shrink-0 bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-md">
+                    {quest.experienceReward} XP
+                  </div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCompleteQuest(quest.id)}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    {translations.complete}
+                  </Button>
                 </div>
               </div>
             ))
@@ -77,12 +116,14 @@ export function QuestPanel({ onClose }: QuestPanelProps) {
           {completedQuests.length > 0 ? (
             completedQuests.map((quest) => (
               <div key={quest.id} className="border rounded-md p-3 space-y-2 opacity-70">
-                <h4 className="font-medium line-through">{quest.title}</h4>
-                <p className="text-sm text-muted-foreground">{quest.description}</p>
-                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-green-500 font-medium">
-                    {translations.reward}: {quest.experienceReward} XP
-                  </span>
+                <div className="flex justify-between items-start">
+                  <div className="flex-grow pr-4">
+                    <h4 className="font-medium line-through">{quest.title}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">{quest.description}</p>
+                  </div>
+                  <div className="flex-shrink-0 bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-md">
+                    {quest.experienceReward} XP
+                  </div>
                 </div>
               </div>
             ))
