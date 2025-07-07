@@ -101,7 +101,38 @@ go test ./internal/user/...
 
 ## Como Iniciar
 
-### Frontend
+### Running the Project with Docker (Recommended)
+
+This is the simplest and recommended way to run the entire application stack (Frontend, Backend, AI Service, and Database) on any operating system.
+
+**Prerequisites:**
+-   **Git**: To clone the repository.
+-   **Docker Desktop**: Download and install it from the [official Docker website](https://www.docker.com/products/docker-desktop/). Make sure it is running.
+
+**Steps:**
+
+1.  **Clone the repository:**
+    ```bash
+    git clone [URL of your repository]
+    cd gamelife
+    ```
+
+2.  **Build and start all services:**
+    From the root directory of the project, run the following command:
+    ```bash
+    docker-compose up --build
+    ```
+    This command will build the Docker images for each service and start them. The initial build may take a few minutes. On subsequent runs, you can simply use `docker-compose up`.
+
+3.  **Access the application:**
+    Once the services are running, you can access the frontend in your browser at:
+    **http://localhost:3000**
+
+### Manual/Legacy Setup
+
+Use this method only if you cannot use Docker and want to run each service natively on your machine.
+
+#### Frontend
 1. Clone o repositório.
 2. Navegue até a pasta do frontend e instale as dependências:
    ```bash
@@ -113,7 +144,7 @@ go test ./internal/user/...
    pnpm dev
    ```
 
-### Backend (Go)
+#### Backend (Go)
 
 Consulte a seção "Backend (Go)" mais acima para instruções detalhadas sobre configuração e execução do backend em Go. Os passos resumidos são (executados de dentro da pasta `backend/` após navegar até ela com `cd backend`):
 
