@@ -15,7 +15,7 @@ import (
 // Service defines the interface for journal business logic.
 type Service interface {
 	GetJournalEntry(id string) (*models.JournalEntry, error)
-	UpdateJournalEntry(id, title, content string, folderID *string) (*models.JournalEntry, error)
+	UpdateJournalEntry(id, title, content string, folderID *string, newText string) (*models.JournalEntry, error)
 	CreateJournalEntry(title, content, userID string, folderID *string) (*models.JournalEntry, error)
 	GetJournalEntriesByUserID(userID string) ([]models.JournalEntry, error)
 	DeleteJournalEntry(id string) error
@@ -51,7 +51,7 @@ func (s *service) GetJournalEntry(id string) (*models.JournalEntry, error) {
 }
 
 // UpdateJournalEntry updates the title and content of a journal entry.
-func (s *service) UpdateJournalEntry(id, title, content string, folderID *string) (*models.JournalEntry, error) {
+func (s *service) UpdateJournalEntry(id, title, content string, folderID *string, newText string) (*models.JournalEntry, error) {
 	entry, err := s.store.GetByID(id)
 	if err != nil {
 		// If the entry does not exist, create it.
@@ -82,10 +82,16 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 		return nil, err
 	}
 
+	// Determine what text to send to the AI
+	textToProcess := newText
+	if textToProcess == "" {
+		textToProcess = content
+	}
+
 	// After successfully updating, send content to the AI services
 	// Process for XP
 	go func() {
-		_, err := s.aiService.ProcessText(entry.Content, entry.UserID)
+		_, err := s.aiService.ProcessText(textToProcess, entry.UserID)
 		if err != nil {
 			log.Printf("Failed to process text with XP agent: %v", err)
 			return
@@ -95,7 +101,7 @@ func (s *service) UpdateJournalEntry(id, title, content string, folderID *string
 
 	// Process for Quests
 	go func() {
-		err := s.aiService.ProcessTextForQuests(entry.Content, entry.UserID)
+		err := s.aiService.ProcessTextForQuests(textToProcess, entry.UserID)
 		if err != nil {
 			log.Printf("Failed to process text with Quest agent: %v", err)
 			return

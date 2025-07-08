@@ -73,6 +73,7 @@ func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 		Title    string  `json:"title"`
 		Content  string  `json:"content"`
 		FolderID *string `json:"folder_id"`
+		NewText  string  `json:"new_text"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -80,7 +81,7 @@ func (h *Handler) updateJournalEntry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entry, err := h.service.UpdateJournalEntry(journalId, payload.Title, payload.Content, payload.FolderID)
+	entry, err := h.service.UpdateJournalEntry(journalId, payload.Title, payload.Content, payload.FolderID, payload.NewText)
 	if err != nil {
 		http.Error(w, "failed to update entry", http.StatusInternalServerError)
 		return

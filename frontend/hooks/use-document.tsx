@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from "next/navigation";
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -25,45 +25,13 @@ interface Document {
   content: string;
 }
 
-// Define the structure of the AI response
-interface AIResponse {
-  response: string;
-}
-
-// Custom Tiptap extension to handle the Enter key press
-const EnterKeyHandler = Extension.create({
-  name: 'enterKeyHandler',
-
-  addOptions() {
-    return {
-      onEnter: (paragraph: string) => {},
-    }
-  },
-
-  addKeyboardShortcuts() {
-    return {
-      'Enter': () => {
-        const { state } = this.editor;
-        const { selection } = state;
-        const { $from } = selection;
-        const currentNode = $from.node($from.depth);
-
-        if (currentNode.textContent) {
-          this.options.onEnter(currentNode.textContent);
-        }
-        
-        return false;
-      },
-    }
-  },
-});
-
 export const useDocument = (documentId?: string) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [document, setDocument] = useState<Document | null>(null);
   const [saving, setSaving] = useState(false);
+  const lastProcessedText = useRef<string>("");
   const { translations } = useLanguage();
   const { token } = useAuthStore();
 
@@ -91,37 +59,14 @@ export const useDocument = (documentId?: string) => {
     router.push(`/docs/${docId}`);
   };
 
-  const sendParagraphToAI = useCallback(async (paragraph: string) => {
-    if (!paragraph.trim()) return;
-
-    try {
-      const response = await fetch("http://localhost:8000/agent/update_character", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paragraph }),
-      });
-      
-      if (!response.ok) {
-        const errorJson = await response.json();
-        throw new Error(`AI service error: ${errorJson.detail || response.statusText}`);
-      }
-
-      const data: AIResponse = await response.json();
-      console.log("AI Response:", data.response);
-    } catch (error) {
-      console.error("Failed to send paragraph to AI:", error);
-      }
-  }, []);
-
   const editor = useEditor({
     extensions: [
       StarterKit,
       Placeholder.configure({
-        placeholder: ({ node }) => node.type.name === 'heading' ? translations.whatIsTitle : translations.beginAdventure,
+        placeholder: ({ node }: { node: any }) => node.type.name === 'heading' ? translations.whatIsTitle : translations.beginAdventure,
       }),
       Heading.configure({ levels: [1, 2, 3] }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      EnterKeyHandler.configure({ onEnter: sendParagraphToAI }),
     ],
     content: '',
     editorProps: {
@@ -129,10 +74,10 @@ export const useDocument = (documentId?: string) => {
         class: "outline-none prose prose-lg max-w-none",
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor }: { editor: any }) => {
       const content = editor.getHTML();
       
-      setDocument(prevDoc => {
+      setDocument((prevDoc: Document | null) => {
         if (!prevDoc) return null;
         const newDoc = { ...prevDoc, content };
         debouncedSave(newDoc as Document);
@@ -140,20 +85,50 @@ export const useDocument = (documentId?: string) => {
       });
     },
     immediatelyRender: false,
-  }, [translations, sendParagraphToAI, documentId]);
+  }, [translations, documentId]);
 
   const debouncedSave = useDebouncedCallback(async (docToSave: Document) => {
-    if (!docToSave || !token) return;
+    if (!docToSave || !token || !editor) return;
+
+    const currentContent = editor.getHTML();
+    const currentText = editor.getText();
+
+    // Do nothing if the text content hasn't changed.
+    if (currentText === lastProcessedText.current) {
+      return;
+    }
+
+    let newTextForAI = "";
+    // If the user is just appending text, send only the new part.
+    if (currentText.startsWith(lastProcessedText.current)) {
+      newTextForAI = currentText.substring(lastProcessedText.current.length);
+    } else {
+      // For more complex changes (editing in the middle), send the whole text.
+      // This is a safe fallback to ensure the AI doesn't miss context.
+      newTextForAI = currentText;
+    }
+
     setSaving(true);
+
     try {
+      const payload = {
+        title: docToSave.title,
+        content: currentContent, // Always save the full HTML content.
+        new_text: newTextForAI,    // Send the new/relevant text to the AI.
+      };
+
       await fetch(`/api/documents/${documentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(docToSave),
+        body: JSON.stringify(payload),
       });
+
+      // After a successful save, update the last processed text.
+      lastProcessedText.current = currentText;
+
     } catch (error) {
       console.error("Failed to save document:", error);
     } finally {
@@ -186,14 +161,14 @@ export const useDocument = (documentId?: string) => {
   }, [documentId, translations, token]);
 
   useEffect(() => {
-    if (!editor || !document || !editor.isEditable) {
-      return;
-    }
+    if (!editor || !document) return;
+
     const isSame = editor.getHTML() === document.content;
-    if (isSame) {
-      return;
-    }
+    if (isSame) return;
+    
     editor.commands.setContent(document.content, false);
+    // Initialize lastProcessedText once the editor has the document content.
+    lastProcessedText.current = editor.getText();
   }, [editor, document]);
 
   const handleTitleChange = (newTitle: string) => {
