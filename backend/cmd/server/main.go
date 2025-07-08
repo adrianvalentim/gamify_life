@@ -98,10 +98,13 @@ func main() {
 
 func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 	const seedUserID = "user-123"
-	// Seed User
-	existingUser, err := userStore.GetByID(seedUserID)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Fatalf("Error checking for seed user: %v", err)
+	const seedUsername = "testuser"
+
+	// Seed User - Check by username to prevent crashes on restart
+	existingUser, err := userStore.GetByUsername(seedUsername)
+	if err != nil {
+		// This error should not be gorm.ErrRecordNotFound, which is handled by existingUser == nil
+		log.Fatalf("Error checking for seed user by username: %v", err)
 	}
 
 	if existingUser == nil {
@@ -112,7 +115,7 @@ func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 		}
 		seedUser := &models.User{
 			ID:             seedUserID,
-			Username:       "testuser",
+			Username:       seedUsername,
 			Email:          "test@example.com",
 			HashedPassword: string(hashedPassword),
 		}
@@ -120,20 +123,28 @@ func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 			log.Fatalf("Could not create seed user: %v", err)
 		}
 		log.Println("Successfully seeded user user-123.")
+		// After creating, re-assign existingUser to the newly created user for character seeding.
+		existingUser = seedUser
 	} else {
-		log.Printf("User %s already exists. Skipping user seed.", seedUserID)
+		log.Printf("User %s already exists. Skipping user seed.", seedUsername)
+	}
+
+	// Ensure we have a user to associate the character with.
+	if existingUser == nil {
+		log.Fatalf("Cannot proceed with character seeding: user is nil after seeding logic.")
+		return // Should be unreachable due to previous checks.
 	}
 
 	// Seed Character
-	existingChar, err := characterStore.GetCharacterByUserID(seedUserID)
+	existingChar, err := characterStore.GetCharacterByUserID(existingUser.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Fatalf("Error checking for seed character: %v", err)
 	}
 
 	if existingChar == nil {
-		log.Println("Seeding initial character for user-123...")
+		log.Printf("Seeding initial character for user %s...", existingUser.Username)
 		newChar := &models.Character{
-			UserID: seedUserID,
+			UserID: existingUser.ID,
 			Name:   "Aventureiro",
 			Class:  string(models.Warrior),
 			Level:  1,
@@ -142,8 +153,8 @@ func seedData(userStore user.Store, characterStore character.ICharacterStore) {
 		if err := characterStore.CreateCharacter(newChar); err != nil {
 			log.Fatalf("Could not create seed character: %v", err)
 		}
-		log.Println("Successfully seeded character for user user-123.")
+		log.Printf("Successfully seeded character for user %s.", existingUser.Username)
 	} else {
-		log.Printf("Character for user %s already exists. Skipping character seed.", seedUserID)
+		log.Printf("Character for user %s already exists. Skipping character seed.", existingUser.Username)
 	}
 }
