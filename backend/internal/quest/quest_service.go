@@ -26,7 +26,7 @@ func NewService(store IQuestStore, characterService *character.Service) *Service
 
 // CreateQuestInput defines the input for creating a new quest.
 type CreateQuestInput struct {
-	UserID           string `json:"userId"`
+	UserID           string `json:"user_id"`
 	Title            string `json:"title"`
 	Description      string `json:"description"`
 	ExperienceReward int    `json:"experienceReward"`

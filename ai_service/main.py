@@ -99,7 +99,7 @@ async def get_active_quests_from_backend(user_id: str) -> list:
 
 async def create_quest_in_backend(user_id: str, data: dict):
     """Calls the backend to create a new quest."""
-    payload = {**data, "userId": user_id}
+    payload = {**data, "user_id": user_id}
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(f"{BACKEND_URL}/api/v1/quests", json=payload)

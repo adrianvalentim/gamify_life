@@ -1,51 +1,60 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/auth-store";
+import useSWR from "swr";
 
 export interface Character {
+  id: string;
+  user_id: string;
+  name: string;
+  class: string;
   level: number;
   xp: number;
-  class: string;
+  xp_to_next_level: number;
   avatar_url: string;
 }
 
-export function useCharacter() {
-  const [character, setCharacter] = useState<Character | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { token, isAuthenticated } = useAuthStore();
+const fetcher = async (url: string, token: string | null) => {
+  if (!token) {
+    throw new Error("Not authenticated");
+  }
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setIsLoading(false);
-      return;
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null; // Return null if character is not found, SWR will cache this
     }
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch character data: ${response.status} ${errorText}`,
+    );
+  }
 
-    const fetchCharacter = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/api/character", {
-          cache: "no-store",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setCharacter(data);
-        } else {
-            setCharacter(null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch character data:", error);
-        setCharacter(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  return response.json();
+};
 
-    fetchCharacter();
-  }, [isAuthenticated, token]);
-
-  return { character, isLoading };
+export function useCharacter() {
+  const { token, isAuthenticated } = useAuthStore();
+  
+  const {
+    data: character,
+    error,
+    isLoading,
+  } = useSWR<Character | null>(
+    isAuthenticated ? "/api/character" : null,
+    (url: string) => fetcher(url, token),
+    {
+      refreshInterval: 3000, // Refresh every 3 seconds
+      revalidateOnFocus: true,
+      dedupingInterval: 1000,
+    },
+  );
+  
+  return { character, isLoading, isError: !!error };
 } 

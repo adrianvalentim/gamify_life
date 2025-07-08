@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const GO_API_URL = process.env.GO_API_URL || "http://localhost:8080/api/v1";
+const BACKEND_URL = process.env.INTERNAL_API_URL || "http://localhost:8080";
 
 export async function POST(request: Request) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       headers['Authorization'] = authHeader;
     }
 
-    const res = await fetch(`${GO_API_URL}/folders`, {
+    const res = await fetch(`${BACKEND_URL}/api/v1/folders`, {
       method: "POST",
       headers: headers,
       body: JSON.stringify(body),
