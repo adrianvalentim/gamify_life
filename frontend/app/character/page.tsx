@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,11 @@ interface Character {
   level: number
   xp: number
   avatar_url: string
+  strength: number
+  defense: number
+  vitality: number
+  mana: number
+  attribute_points: number
 }
 
 // Function to calculate XP needed for the next level
@@ -30,6 +35,12 @@ const getNextLevelXp = (level: number) => {
 export default function CharacterPage() {
   const [character, setCharacter] = useState<Character | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [pointsToSpend, setPointsToSpend] = useState({
+    strength: 0,
+    defense: 0,
+    vitality: 0,
+    mana: 0,
+  })
   const router = useRouter()
   const { toast } = useToast()
   const { isAuthenticated, token } = useAuthStore()
@@ -106,16 +117,56 @@ export default function CharacterPage() {
     )
   }
 
+  const handlePointChange = (attr: keyof typeof pointsToSpend, amount: number) => {
+    const remainingPoints =
+      character.attribute_points -
+      (pointsToSpend.strength + pointsToSpend.defense + pointsToSpend.vitality + pointsToSpend.mana)
+
+    if (amount > 0 && remainingPoints <= 0) return // No points left to spend
+    if (amount < 0 && pointsToSpend[attr] <= 0) return // Cannot go below 0
+
+    setPointsToSpend(prev => ({ ...prev, [attr]: prev[attr] + amount }))
+  }
+
+  const handleSaveChanges = async () => {
+    try {
+      const response = await fetch("/api/character/spend-points", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(pointsToSpend),
+      });
+
+      if (response.ok) {
+        const updatedCharacter = await response.json();
+        setCharacter(updatedCharacter);
+        setPointsToSpend({ strength: 0, defense: 0, vitality: 0, mana: 0 }); // Reset points
+        toast({
+          title: "Atributos atualizados!",
+          description: "Seus pontos foram distribuídos com sucesso.",
+        });
+      } else {
+        console.error("Failed to save attribute points");
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar os atributos.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving attribute points:", error);
+    }
+  };
+
   const nextLevelXp = getNextLevelXp(character.level)
   const progress = (character.xp / nextLevelXp) * 100
-  
-  // Basic attributes based on level (can be expanded later)
-  const attributes = {
-    strength: 10 + Math.floor(character.level / 2),
-    defense: 8 + Math.floor(character.level / 3),
-    health: 100 + (character.level * 10),
-    mana: 50 + (character.level * 5),
-  }
+  const totalSpentPoints = Object.values(pointsToSpend).reduce((a, b) => a + b, 0);
+
+  // Derived stats based on core attributes
+  const health = (character.vitality + pointsToSpend.vitality) * 10;
+  const mana = (character.mana + pointsToSpend.mana) * 10;
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-5xl">
@@ -163,40 +214,86 @@ export default function CharacterPage() {
               <Progress value={progress} className="h-2 mb-6" />
               
               <div className="grid grid-cols-2 gap-4 w-full">
-                <div className="flex items-center gap-2 bg-muted/50 p-3 rounded-lg">
-                  <Sword className="h-5 w-5 text-red-500" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Força</div>
-                    <div className="font-medium">{attributes.strength}</div>
+                <div className="flex items-center justify-between gap-2 bg-muted/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Sword className="h-5 w-5 text-red-500" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Força</div>
+                      <div className="font-medium">{character.strength + pointsToSpend.strength}</div>
+                    </div>
                   </div>
+                  {character.attribute_points > 0 && (
+                     <div className="flex items-center gap-1">
+                       <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('strength', -1)}>-</Button>
+                       <span className="w-4 text-center">{pointsToSpend.strength}</span>
+                       <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('strength', 1)}>+</Button>
+                     </div>
+                  )}
                 </div>
                 
-                <div className="flex items-center gap-2 bg-muted/50 p-3 rounded-lg">
-                  <Shield className="h-5 w-5 text-blue-500" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Defesa</div>
-                    <div className="font-medium">{attributes.defense}</div>
+                <div className="flex items-center justify-between gap-2 bg-muted/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Defesa</div>
+                      <div className="font-medium">{character.defense + pointsToSpend.defense}</div>
+                    </div>
                   </div>
+                  {character.attribute_points > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('defense', -1)}>-</Button>
+                      <span className="w-4 text-center">{pointsToSpend.defense}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('defense', 1)}>+</Button>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="flex items-center gap-2 bg-muted/50 p-3 rounded-lg">
-                  <Heart className="h-5 w-5 text-green-500" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Saúde</div>
-                    <div className="font-medium">{attributes.health}</div>
+                <div className="flex items-center justify-between gap-2 bg-muted/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-5 w-5 text-green-500" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Saúde</div>
+                      <div className="font-medium">{health}</div>
+                    </div>
                   </div>
+                  {character.attribute_points > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('vitality', -1)}>-</Button>
+                      <span className="w-4 text-center">{pointsToSpend.vitality}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('vitality', 1)}>+</Button>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="flex items-center gap-2 bg-muted/50 p-3 rounded-lg">
-                  <Zap className="h-5 w-5 text-purple-500" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Mana</div>
-                    <div className="font-medium">{attributes.mana}</div>
+                <div className="flex items-center justify-between gap-2 bg-muted/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-purple-500" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Mana</div>
+                      <div className="font-medium">{mana}</div>
+                    </div>
                   </div>
+                   {character.attribute_points > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('mana', -1)}>-</Button>
+                      <span className="w-4 text-center">{pointsToSpend.mana}</span>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => handlePointChange('mana', 1)}>+</Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </CardContent>
+          {character.attribute_points > 0 && (
+            <CardFooter className="flex-col items-start">
+                <div className="text-center w-full mb-2 text-sm font-medium">
+                  Você tem {character.attribute_points - totalSpentPoints} pontos para distribuir!
+                </div>
+                <Button className="w-full" onClick={handleSaveChanges} disabled={totalSpentPoints === 0}>
+                  Salvar Alterações
+                </Button>
+            </CardFooter>
+          )}
         </Card>
         
         <div className="col-span-1 lg:col-span-2">

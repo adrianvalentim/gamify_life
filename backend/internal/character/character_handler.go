@@ -18,6 +18,7 @@ type ICharacterService interface {
 	GetCharacterByUserID(userID string) (*models.Character, error)
 	GrantXP(characterID string, amount int) (char *models.Character, leveledUp bool, err error)
 	GetCharacter(characterID string) (*models.Character, error) // Added for GrantXP consistency
+	SpendAttributePoints(characterID string, input SpendAttributePointsInput) (*models.Character, error)
 }
 
 type Handler struct {
@@ -36,6 +37,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			r.Use(auth.AuthMiddleware)
 			r.Post("/", h.handleCreateCharacter) // POST /api/v1/characters
 			r.Get("/me", h.handleGetMyCharacter) // GET /api/v1/characters/me
+			r.Post("/me/spend-points", h.handleSpendAttributePoints) // POST /api/v1/characters/me/spend-points
 		})
 
 		// Public or other character routes
@@ -250,4 +252,40 @@ func (h *Handler) handleGetMyCharacter(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(character)
+}
+
+func (h *Handler) handleSpendAttributePoints(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(auth.UserIDKey).(string)
+	if !ok {
+		http.Error(w, "User ID not found in context", http.StatusUnauthorized)
+		return
+	}
+
+	char, err := h.service.GetCharacterByUserID(userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			http.Error(w, `{"error": "Character not found for this user"}`, http.StatusNotFound)
+			return
+		}
+		http.Error(w, `{"error": "Failed to retrieve character"}`, http.StatusInternalServerError)
+		return
+	}
+
+	var input SpendAttributePointsInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	updatedChar, err := h.service.SpendAttributePoints(char.ID, input)
+	if err != nil {
+		// Basic error handling, can be improved to check for validation errors
+		http.Error(w, "Failed to spend attribute points: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(updatedChar)
 }

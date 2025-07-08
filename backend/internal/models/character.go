@@ -19,14 +19,24 @@ const (
 
 // Character represents a user's game character.
 type Character struct {
-	ID        string    `gorm:"primaryKey" json:"id"`
-	UserID    string    `gorm:"uniqueIndex" json:"user_id"`
-	Name      string    `json:"name"`
-	Bio       string    `json:"bio"`
-	AvatarURL string    `json:"avatar_url"`
-	XP        int       `gorm:"default:0" json:"xp"`
-	Level     int       `gorm:"default:1" json:"level"`
-	Class     string    `json:"class"`
+	ID        string `gorm:"type:uuid;primary_key;" json:"id"`
+	UserID    string `gorm:"type:uuid;not null" json:"user_id"`
+	User      User   `gorm:"foreignkey:UserID"`
+	Name      string `gorm:"not null" json:"name"`
+	Class     string `gorm:"not null" json:"class"`
+	AvatarURL string `json:"avatar_url"`
+	Level     int    `gorm:"not null;default:1" json:"level"`
+	XP        int    `gorm:"column:experience_points;not null;default:0" json:"xp"`
+
+	// Core D&D-style attributes
+	Strength int `gorm:"not null;default:10" json:"strength"`
+	Defense  int `gorm:"not null;default:10" json:"defense"`
+	Vitality int `gorm:"not null;default:10" json:"vitality"`
+	Mana     int `gorm:"not null;default:10" json:"mana"`
+
+	// Points to be spent on level up
+	AttributePoints int `gorm:"not null;default:0" json:"attribute_points"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

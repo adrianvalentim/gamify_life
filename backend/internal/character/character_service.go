@@ -76,6 +76,12 @@ func (s *Service) CreateCharacter(input CreateCharacterInput) (*models.Character
 		AvatarURL: input.AvatarURL,
 		Level:     1,
 		XP:        0,
+		// Set default base attributes
+		Strength:        10,
+		Defense:         10,
+		Vitality:        10,
+		Mana:            10,
+		AttributePoints: 5, // Give some points to start
 	}
 
 	if err := s.store.CreateCharacter(character); err != nil {
@@ -118,11 +124,49 @@ func (s *Service) levelUpIfNeeded(character *models.Character) bool {
 	for character.XP >= xpToNextLevel && character.Level < 100 { // Cap level at 100 for example
 		character.Level++
 		character.XP -= xpToNextLevel
-		// Potentially add stat increases or other rewards here
+		character.AttributePoints += 5 // Grant 5 attribute points per level up
 		leveledUp = true
 		xpToNextLevel = character.Level * 100 // Recalculate for next potential level
 	}
 	return leveledUp
+}
+
+// SpendAttributePointsInput defines the input for spending attribute points.
+type SpendAttributePointsInput struct {
+	Strength int `json:"strength"`
+	Defense  int `json:"defense"`
+	Vitality int `json:"vitality"`
+	Mana     int `json:"mana"`
+}
+
+// SpendAttributePoints applies spent points to a character's attributes.
+func (s *Service) SpendAttributePoints(characterID string, input SpendAttributePointsInput) (*models.Character, error) {
+	char, err := s.store.GetCharacterByID(characterID)
+	if err != nil {
+		return nil, err // Character not found
+	}
+
+	totalPointsToSpend := input.Strength + input.Defense + input.Vitality + input.Mana
+	if totalPointsToSpend > char.AttributePoints {
+		return nil, &ValidationError{Field: "AttributePoints", Message: "not enough points to spend"}
+	}
+
+	if input.Strength < 0 || input.Defense < 0 || input.Vitality < 0 || input.Mana < 0 {
+		return nil, &ValidationError{Field: "Attributes", Message: "points to spend cannot be negative"}
+	}
+
+	// Apply points
+	char.Strength += input.Strength
+	char.Defense += input.Defense
+	char.Vitality += input.Vitality
+	char.Mana += input.Mana
+	char.AttributePoints -= totalPointsToSpend
+
+	if err := s.store.UpdateCharacter(char); err != nil {
+		return nil, err
+	}
+
+	return char, nil
 }
 
 // GetCharacterByUserID retrieves a character by their UserID.
